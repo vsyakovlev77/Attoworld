@@ -3,17 +3,10 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "LightwaveExplorer"
-version = "2025.2.4"
-authors = [
-    { name="Nick Karpowicz", email="nicholas.karpowicz@mpq.mpg.de" },
-]
-dependencies = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "pyyaml",
-]
+name = "Attoworld"
+version = "2025.0"
+authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
+dependencies = ["numpy", "scipy", "matplotlib", "pyyaml", "marimo"]
 description = "Tools for using Lightwave Explorer results"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -21,8 +14,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = { file = "LICENSE"}
+license = { file = "LICENSE" }
 
 [project.urls]
-Homepage = "https://github.com/NickKarpowicz/LightwaveExplorer"
-Issues = "https://github.com/NickKarpowicz/LightwaveExplorer/issues"
+Homepage = "https://github.com/NickKarpowicz/Attoworld"
+Issues = "https://github.com/NickKarpowicz/Attoworld/issues"
