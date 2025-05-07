@@ -1,2 +1,2 @@
-# AttoLab
-Data processing tools from the Attosecond lab at the Max Planck Institute of Quantum Optics
+# Attoworld
+Data processing tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
