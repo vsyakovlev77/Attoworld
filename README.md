@@ -7,6 +7,7 @@ The module has several submodules to keep it organized:
 - *personal*: a module where we can add our own functions that might not be of general interest, but are still good to have available to we can easily share work
 - *plot*: functions for plotting with a consistent style
 - *wave*: functions for processing waveforms
+- *spectrum*: functions for processing spectra
 
 ## Guidelines
 The goal of this module is to gather the python programming work that we do, which maybe others in the group or the community at large could benefit from, into a module that we can easily add to our projects. This is easier if we follow some guidelines for best practices:
