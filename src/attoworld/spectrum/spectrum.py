@@ -8,8 +8,8 @@ def wavelength_to_frequency(wavelengths_nm: np.ndarray, spectrum: np.ndarray, fr
     """Convert a wavelength spectrum in W/nm into a frequency spectrum in W/THz
 
     Args:
-        wavelength_nm: the wavelengths included in the data, in nanometers
-        spectrum: the spectrum corresponding to the input wavelength scale
+        wavelength_nm (np.ndarray): the wavelengths included in the data, in nanometers
+        spectrum (np.ndarray): the spectrum corresponding to the input wavelength scale
         frequencies: (optional) frequency vector for the output. If not specified, a vector will be calculated such that resolution and range are preserved.
     Returns:
         f: frequencies (Hz)

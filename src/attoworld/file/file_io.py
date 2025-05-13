@@ -3,8 +3,13 @@ import numpy as np
 
 def load_waves_from_matfile(phase: float, filename: str):
     """Load the contents of an attolab scanner file in .mat format
-    phase -- phase to use when interpreting the lock-in data
-    filename -- .mat file
+
+    Args:
+        phase (float): phase to use when interpreting the lock-in data
+        filename (str): path to the mat file
+    Returns:
+        time_delay: array of time delay values
+        signal: signals corresponding to the time delays
     """
     datablob = sio.loadmat(filename)
     stage_position = datablob['xdata'][0,:]
