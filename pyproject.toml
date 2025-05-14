@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "attoworld"
-version = "2025.0.10"
+version = "2025.0.11"
 authors = [{ name = "Nick Karpowicz", email = "nicholas.karpowicz@mpq.mpg.de" }]
 dependencies = ["numpy", "scipy", "matplotlib", "pyyaml", "marimo"]
 description = "Tools for using Lightwave Explorer results"

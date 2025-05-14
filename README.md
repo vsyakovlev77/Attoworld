@@ -1,6 +1,8 @@
 # Attoworld
 Tools from the Attosecond science group at the Max Planck Institute of Quantum Optics, a.k.a. [Attoworld](https://www.attoworld.de)
 
+[Documentation available here!](http://nickkarpowicz.github.io/docs/attoworld)
+
 ## Structure
 The module has several submodules to keep it organized:
 - *file*: functions for reading/writing the various data formats used across the labs

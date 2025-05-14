@@ -1,8 +1,6 @@
 import numpy as np
 from scipy import constants
 from typing import Optional
-import time
-
 
 def wavelength_to_frequency(wavelengths_nm: np.ndarray, spectrum: np.ndarray, frequencies: Optional[np.ndarray]=None):
     """Convert a wavelength spectrum in W/nm into a frequency spectrum in W/THz

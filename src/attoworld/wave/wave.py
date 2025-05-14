@@ -2,7 +2,6 @@ import numpy as np
 import scipy.signal as sig
 import scipy.optimize as opt
 
-
 def align_waves(waves, dt: float, frequency_roi_start: float, frequency_roi_stop: float):
     """
     Align a set of waveforms, inside of a 2D numpy array.
