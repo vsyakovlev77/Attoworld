@@ -26,6 +26,7 @@ The goal of this module is to gather the python programming work that we do, whi
 """
 
 from . import file
+from . import numeric
 from . import personal
 from . import plot
 from . import spectrum

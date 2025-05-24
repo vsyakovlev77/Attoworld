@@ -1,5 +1,5 @@
 """
-This module will contain function for loading the various data formats used across the labs.
+This module will contain functions for loading the various data formats used across the labs.
 """
 
 from .file_io import *

@@ -13,6 +13,7 @@ def wavelength_to_frequency(wavelengths_nm: np.ndarray, spectrum: np.ndarray, fr
         f: frequencies (Hz)
         scaled_spectrum: the frequency-domain spectrum
     """
+    # Contributed by Nick Karpowicz
     input_frequencies = 1e9 * constants.speed_of_light/wavelengths_nm
 
     if frequencies is None:
