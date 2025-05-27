@@ -6,6 +6,7 @@ Tools from the Attosecond science group at the Max Planck Institute of Quantum O
 ## Structure
 The module has several submodules to keep it organized:
 - *file*: functions for reading/writing the various data formats used across the labs
+- *numeric*: numerical tools
 - *personal*: a module where we can add our own functions that might not be of general interest, but are still good to have available to we can easily share work
 - *plot*: functions for plotting with a consistent style
 - *wave*: functions for processing waveforms
