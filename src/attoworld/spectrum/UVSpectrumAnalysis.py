@@ -5,18 +5,25 @@ import pandas
 import os
 
 # load calibration data
-try:
-    calibration_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration_data")
-    calibration = np.load(os.path.join(calibration_data_path, "Reso_Spectrometer_CalibrationCorrection.npz"))
-    wavelength_calibration=calibration['wavelength']
-    lamp_spec=calibration['lamp_ref']
-    lamp_measbyReso=calibration['lamp_measured']
-    calibration_smoothed=np.abs(calibration['corr_factor_smoothed'])
-except FileNotFoundError:
-    print('Error: calibration data for the UV spectrometer not found.\n'
-          'Please copy the folder Attoworld/src/attoworld/spectrum/calibration_data into your current working directory\n'
-          'or alternatively create a calibration file with relative path ./calibration_data/Reso_Spectrometer_CalibrationCorrection.npz\n')
-    raise FileNotFoundError('calibration data not found')
+def load_calibration_data(calibration_data_filepath):
+    """
+    Load calibration data in a .npz file for the Reso spectrometer
+
+    Args:
+        calibration_data_filepath (StrOrBytesPath): path of the file to load
+    """
+    try:
+        calibration = np.load(calibration_data_filepath)
+        wavelength_calibration=calibration['wavelength']
+        lamp_spec=calibration['lamp_ref']
+        lamp_measbyReso=calibration['lamp_measured']
+        calibration_smoothed=np.abs(calibration['corr_factor_smoothed'])
+    except FileNotFoundError:
+        print('Error: calibration data for the UV spectrometer not found.\n'
+            'Please copy the folder Attoworld/src/attoworld/spectrum/calibration_data into your current working directory\n'
+            'or alternatively create a calibration file with relative path ./calibration_data/Reso_Spectrometer_CalibrationCorrection.npz\n')
+        raise FileNotFoundError('calibration data not found')
+    return wavelength_calibration, lamp_spec, lamp_measbyReso, calibration_smoothed
 
 def smooth(y, box_pts: int):
     """basic box smoothing for the spectra
@@ -170,13 +177,14 @@ def read_spectrometer_excel(filename):
                 data[-1].append(float(x))
     return np.array(data)
 
-def calibrate(data, column: int, dark = None, dark_c = None, stitch: bool = False, smooth_points: int = 10, null_calibration: bool = False, wavelength_calibration_intercept: float = 3.538, wavelength_calibration_slope: float = 1.003427):
+def calibrate(data, column: int, calibration_file_path="./calibration_data/Reso_Spectrometer_CalibrationCorrection.npz", dark = None, dark_c = None, stitch: bool = False, smooth_points: int = 10, null_calibration: bool = False, wavelength_calibration_intercept: float = 3.538, wavelength_calibration_slope: float = 1.003427):
     """For the UV spectrometer. Calibrate the spectrum number 'column' in the the 'data' array. Intensity calibration factor is loaded in the first lines of UVSpectrumAnalysis.py.
         Notice: each saved spectrum has 7 columns in the excel file; however, the argument column refers to the index of the spectrum, not the actual column in the file.
 
     ARGUMENTS:
         data = data [numpy] array (see read_spectrometer_excel)
         column = index of the spectrum to be calibrated
+        calibration_file_path: path of the calibration file
         dark = dark spectrum (optional)
         dark_c = column of the dark spectrum (optional)
         stitch = Boolean, if True, the spectra are stitched together (optional, default False)
@@ -195,6 +203,8 @@ def calibrate(data, column: int, dark = None, dark_c = None, stitch: bool = Fals
         wavelength = wavelength array
         spectrum = calibrated spectrum
     """
+    wavelength_calibration, lamp_spec, lamp_measbyReso, calibration_smoothed = load_calibration_data(calibration_file_path)
+
     if wavelength_calibration_slope is None or wavelength_calibration_intercept is None:
         cal_slope = 1.
         cal_intercept = 0.
