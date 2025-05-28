@@ -33,3 +33,4 @@ from . import personal
 from . import plot
 from . import spectrum
 from . import wave
+from . import attoworld_rs

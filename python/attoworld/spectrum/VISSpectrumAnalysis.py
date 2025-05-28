@@ -1,7 +1,5 @@
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib_inline.backend_inline import set_matplotlib_formats
 from numpy.core.records import ndarray
 from scipy.ndimage import gaussian_filter1d
 import pandas
@@ -288,10 +286,10 @@ class SpectrumHandler:
 
     def calibrate_wavelength_axis(self, intercept: float, slope: float):
         """Calibrate the wavelength axis of the spectrum using the given coefficient of a linear fit.
-        
+
         Form of the calibration: true_wavelength = intercept + slope * measured_wavelength
         The function modifies the wavelength axis in place.
-        
+
         ARGUMENTS:
             intercept: float,
             slope: float
@@ -453,7 +451,7 @@ class MultiSpectrumHandler:
     """Stores and plots multiple spectra"""
     def __init__(self, filenameList: list = None, wavelengthList: list = None, spectrumList: list = None, spectrumHandlerList: list = None, remove_offsets_individually: bool=False, nm_smearing=1., eliminate_outliers_spectrum=False, filetype='MayaScarab'):
         """Constructor for the MultiSpectrumHandler class.
-        
+
         ARGUMENTS:
             filenameList: list = List of filenames to be read.
             wavelengthList: list = List of wavelength arrays. (alternative to filename)
