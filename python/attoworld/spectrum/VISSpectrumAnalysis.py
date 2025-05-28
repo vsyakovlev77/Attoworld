@@ -18,12 +18,11 @@ def box_smooth(y, box_pts):
 def eliminate_outliers(y, threshold: float=3, window_points: int=20):
     """Eliminates outliers in the data by replacing them with the mean of the surrounding values.
 
-    ARGUMENTS:
-        y: np.ndarray = Input data array.
-        threshold: float = Threshold in units of sigma for outlier detection. Default is 3.
-        window_points: int = Number of points to consider for the mean and sigma calculation. Default is 20.
-
-    RETURNS: nothing, modifies the input array in place."""
+    Args:
+        y (np.ndarray): Input data array.
+        threshold (float): Threshold in units of sigma for outlier detection. Default is 3.
+        window_points (int): Number of points to consider for the mean and sigma calculation. Default is 20.
+    """
     if not isinstance(y, ndarray):
         raise TypeError("Input of eliminate_outliers must be a numpy array.")
     n_outliers = 0
@@ -45,11 +44,11 @@ def read_spectrum_maya(filename, remove_offsets_individually=False, nm_smearing=
     The function also applies a Gaussian filter to the spectrum data to smooth it.
     The function can optionally eliminate outliers in the spectrum data and remove offsets from each column individually.
 
-    ARGUMENTS:
+    Args:
         filename
-        remove_offsets_individually: bool = If True, compute and remove offsets from each column individually
-        nm_smearing : float = sigma in nm of the gaussian filter applied to smooth the spectrum.
-        eliminate_outliers_spectrum : bool = If True, eliminate single pixel outliers in the spectral data and replace them with average of surrounding values.
+        remove_offsets_individually (bool): If True, compute and remove offsets from each column individually
+        nm_smearing (float): sigma in nm of the gaussian filter applied to smooth the spectrum.
+        eliminate_outliers_spectrum (bool): = If True, eliminate single pixel outliers in the spectral data and replace them with average of surrounding values.
             default is False.
         """
     data = pandas.read_table(filename, sep=' ', keep_default_na=True, skiprows=0)
@@ -151,14 +150,14 @@ class SpectrumHandler:
     def __init__(self, filename: str = None, wavelengths = None, spectrum = None, remove_offsets_individually: bool=False, nm_smearing=1., eliminate_outliers_spectrum=False, filetype='MayaScarab'):
         """Provide either a filename or the wavelengths and spectrum arrays to the constructor.
 
-        ARGUMENTS:
-            filename: str = Path to the file containing the spectrum data.
-            wavelengths and spectrum: np.ndarray = Wavelengths and spectrum data arrays. (alternative to filename)
-            remove_offsets_individually: bool = If True, compute and remove offsets from each column individually
+        Args:
+            filename (str): Path to the file containing the spectrum data.
+            wavelengths and spectrum (np.ndarray): = Wavelengths and spectrum data arrays. (alternative to filename)
+            remove_offsets_individually (bool): = If True, compute and remove offsets from each column individually
                 (filename is expected to have one column of wavelength data and arbitrarily many columns of equivalent spectra [to be averaged]).
-            nm_smearing: float = Smearing in nm to be applied to the spectrum.
-            eliminate_outliers_spectrum: bool = If True, eliminate single pixel outliers in the spectral data and replace them with average of surrounding values.
-            filetype: str = Type of the file to be read. Options are 'MayaScarab' (default) or 'OceanOptics'.
+            nm_smearing (float): Smearing in nm to be applied to the spectrum.
+            eliminate_outliers_spectrum (bool): If True, eliminate single pixel outliers in the spectral data and replace them with average of surrounding values.
+            filetype (str): Type of the file to be read. Options are 'MayaScarab' (default) or 'OceanOptics'.
 
         """
 
@@ -252,10 +251,10 @@ class SpectrumHandler:
         The method assumes that the true calibration lamp data and the measured spectrum of the calibration lamp are loaded in the object
         The normalization of the three curves is arbitrary. By default the region between 420 and 800 nm is used for normalization.
 
-        ARGUMENTS:
-            low_lim, up_lim: float = Wavelength limits for the x-axis.
-            low_lim_y, up_lim_y: float = Intensity limits for the y-axis.
-            wavelength_ROI: list = [wvl1, wvl2] = Wavelength range for the normalization of the calibration factor (for display purposes).
+        Args:
+            low_lim, up_lim(float): Wavelength limits for the x-axis.
+            low_lim_y, up_lim_y (float): Intensity limits for the y-axis.
+            wavelength_ROI (list): [wvl1, wvl2] = Wavelength range for the normalization of the calibration factor (for display purposes).
                 Default is [420, 800] nm.
             """
         if low_lim is None or up_lim is None:
@@ -290,9 +289,9 @@ class SpectrumHandler:
         Form of the calibration: true_wavelength = intercept + slope * measured_wavelength
         The function modifies the wavelength axis in place.
 
-        ARGUMENTS:
+        Args:
             intercept: float,
-            slope: float
+            Args: float
             """
         if self.wvl is None or self.spectrum is None:
             raise ValueError("Spectrum not loaded.")
@@ -309,9 +308,9 @@ class SpectrumHandler:
          - 0 everywhere  else
          In this case, tukey window is computed in the wavelength domain.
 
-        ARGUMENTS:
-            edge1, edge2: float = Wavelength limits for the Tukey window (edge2-edge1 = FWHM, in nm)
-            edge1_width, edge2_width: float = Width of the cosine-shaped edge of the tukey window (in nm).
+        Args:
+            edge1, edge2 (float): Wavelength limits for the Tukey window (edge2-edge1 = FWHM, in nm)
+            edge1_width, edge2_width (float): Width of the cosine-shaped edge of the tukey window (in nm).
             """
 
         window = asymmetric_tukey_window(self.wvl, edge1, edge2, edge1_width, edge2_width)
@@ -375,7 +374,7 @@ class SpectrumHandler:
          - the measured spectrum of the calibration lamp is loaded as main spectrum
          - the true tabulated spectrum of the calibration lamp is loaded as self.calibration_lamp_spectrum [via load_calibration_lamp_data()]
 
-         ARGUMENTS (OPTIONAL):
+         Args:
             transmission_additional_optics: list of SpectrumHandler objects = list of transmission spectra of additional optics to be taken into account when computing the calibration factor.
                 The transmission ['reflection' for mirrors] spectra of additional optics will be included (multiplied) in the calibration factor
                 Additional optics are assumed to be in the beam path of any standard measurement (e.g. integrating sphere) BUT NOT PRESENT during the calibration lamp measurement.
@@ -452,7 +451,7 @@ class MultiSpectrumHandler:
     def __init__(self, filenameList: list = None, wavelengthList: list = None, spectrumList: list = None, spectrumHandlerList: list = None, remove_offsets_individually: bool=False, nm_smearing=1., eliminate_outliers_spectrum=False, filetype='MayaScarab'):
         """Constructor for the MultiSpectrumHandler class.
 
-        ARGUMENTS:
+        Args:
             filenameList: list = List of filenames to be read.
             wavelengthList: list = List of wavelength arrays. (alternative to filename)
             spectrumList: list = List of spectrum arrays. (alternative to filename)

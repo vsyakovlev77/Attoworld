@@ -18,11 +18,11 @@ def get_fwhm(t, x, no_envelope: bool = False):
     FWHM is the full-width of the intensity profile I(t) = |A(t)|^2 at half-maximum, where A(t) is the envelope of the signal.
 
     PARAMETERS:
-    x = signal in time domain vector
-    t = time vector
+    x: signal in time domain vector
+    t: time vector
 
     RETURNS:
-    fwhm = fwhm_val[0]
+    fwhm: fwhm_val[0]
 
     if no_envelope == True it computes the FWHM without taking the square modulus and without computing envelope (assuming input is intensity envelope already)
     """
@@ -95,7 +95,7 @@ def plot_crosssect(data, fitfunct=None):
     maxindex = np.unravel_index(np.argmax(data), data.shape)
     y, x = maxindex[0], maxindex[1]
     Y, X = np.indices(data.shape)
-    
+
     fig, ax = plt.subplots(1, 2)
     ax[0].plot(X[y], data[y])
     if fitfunct is not None:
@@ -123,7 +123,7 @@ def cut_trace(t, x, radius, center=None):
     return cut_trace
 
 def integral2d(data, pixelsize=1.):
-    return data.sum()*pixelsize**2   
+    return data.sum()*pixelsize**2
 
 def trace_integral(t, x):
     dt = np.gradient(t)
@@ -133,11 +133,11 @@ def trace_integral(t, x):
 def twoD_Gaussian(xy, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     x, y = xy
     xo = float(xo)
-    yo = float(yo)    
+    yo = float(yo)
     a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) 
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
                             + c*((y-yo)**2)))
     return g.ravel()
 
@@ -146,18 +146,18 @@ def profile_analysis(profile_file, trace_file = None, magnification=1., pixelsiz
     """if trace_file is None, this function only loads, fits and plots the beam profile; if trace_file is given, the function additionally calculates the peak intensity and field.
 
     ARGUMENTS:
-        profile_file = name of the file containing the beam profile; the file (txt or csv) contains the 2D array of the beam profile
+        profile_file: name of the file containing the beam profile; the file (txt or csv) contains the 2D array of the beam profile
 
     OPTIONAL ARGUMENTS:
-        trace_file = None; name of the file containing the trace; the file (txt or csv) contains the time and field arrays as tab-separated columns
-        magnification=1.; ratio of lens-camera/lens-z0 lengths; This is used to give the correct size of the beam profile at z0 in um
-        pixelsize=5. um; pixel size of the camera
-        power=20. mW; power of the laser beam; this is used to calculate the peak intensity
-        reprate = 4 kHz; repetition rate of the laser; this is used to calculate the peak intensity
-        ROI_diam = 100; diameter of the region of interest in pixels; the center of the ROI is the maximum of the camera data (which is assumed to be not saturated)
-        cutoff_gaus_fit_profile = 25. pixels; the 2d gaussian is fitted to the beam profile up to this distance from the peak
-        forced_background = None; if not None, the subtracted background is set to this value; otherwise it's computed from the outer ring of the ROI (camera data)
-        trace_cutoff_radius = 50. fs; for intensity calculation, the integral of the trace is computed only in the range t[peak]-trace_cutoff_radius < t < t[peak]+trace_cutoff_radius"""
+        trace_file: None; name of the file containing the trace; the file (txt or csv) contains the time and field arrays as tab-separated columns
+        magnification: 1.; ratio of lens-camera/lens-z0 lengths; This is used to give the correct size of the beam profile at z0 in um
+        pixelsize: 5. um; pixel size of the camera
+        power: 20. mW; power of the laser beam; this is used to calculate the peak intensity
+        reprate: 4 kHz; repetition rate of the laser; this is used to calculate the peak intensity
+        ROI_diam: 100; diameter of the region of interest in pixels; the center of the ROI is the maximum of the camera data (which is assumed to be not saturated)
+        cutoff_gaus_fit_profile: 25. pixels; the 2d gaussian is fitted to the beam profile up to this distance from the peak
+        forced_background: None; if not None, the subtracted background is set to this value; otherwise it's computed from the outer ring of the ROI (camera data)
+        trace_cutoff_radius: 50. fs; for intensity calculation, the integral of the trace is computed only in the range t[peak]-trace_cutoff_radius < t < t[peak]+trace_cutoff_radius"""
 
     pixelsize=pixelsize/magnification
     data=pandas.read_csv(profile_file)
@@ -242,6 +242,3 @@ def profile_analysis(profile_file, trace_file = None, magnification=1., pixelsiz
     plt.show()
 
     plot_crosssect(dataval, fitfunct=gaussian(*param))
-
-
-
