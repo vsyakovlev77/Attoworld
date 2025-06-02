@@ -53,30 +53,42 @@ def _(mo):
 
 @app.cell
 def _(aw, np, plt):
-    x = np.real(np.linspace(0.0,17.0,36))
-    x_fine = np.real(np.linspace(0.0,17.0,1024))
-    y = np.sin(x**2/10)
-    y_fine = np.sin(x_fine**2/10)
-    x2 = np.linspace(0.0,19.0,60)
-    plt.plot(x,y,'o')
-    plt.plot(x_fine,y_fine)
-    plt.plot(x2,aw.numeric.interpolate(x2, x,y, 3, extrapolate=False),'x')
+    def plot_interpolate_test():
+        x = np.real(np.linspace(0.0,17.0,24))
+        x_fine = np.real(np.linspace(0.0,17.0,1024))
+        y = np.sin(x**2/10)
+        y_fine = np.sin(x_fine**2/10)
+        x2 = np.linspace(0.0,19.0,60)
+        plt.plot(x,y,'o')
+        plt.plot(x_fine,y_fine)
+        plt.plot(x2,aw.numeric.interpolate(x2, x,y, 3, extrapolate=False),'x')
+
+    plot_interpolate_test()
     aw.plot.showmo()
     return
 
 
 @app.cell
 def _(aw, np, plt):
-    ix = np.linspace(-5, 5, 24)
-    iy = np.exp(-ix**2)
+    ix = np.linspace(-5, 5, 15)
+    _dx = ix[1]-ix[0]
+    iy = np.exp(-ix**2/2)
     plt.plot(iy)
 
     interpolated_position, interpolated_max = aw.attoworld_rs.find_maximum_location(iy, 3)
     raw_max = np.max(iy)
     raw_argmax = np.argmax(iy)
 
+    first_intercept = aw.attoworld_rs.find_first_intercept(iy, 0.5, 2)
+    last_intercept = aw.attoworld_rs.find_last_intercept(iy, 0.5, 2)
+    fwhm = aw.attoworld_rs.fwhm(iy, _dx)
+
     print(f"find_maximum_location gives maximum at ({interpolated_position},{interpolated_max})")
     print(f"raw indexing gives maximum at ({raw_argmax},{raw_max})")
+    print(f"first intercept float index: {first_intercept}")
+    print(f"fwhm (from function): {fwhm}")
+    print(f"last intercept float index: {last_intercept}")
+
     aw.plot.showmo()
     return
 

@@ -1,19 +1,16 @@
+use std::f64;
+
 use pyo3::prelude::*;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
 #[pyo3(name = "attoworld_rs")]
 fn attoworld_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(rust_hello, m)?)?;
     m.add_function(wrap_pyfunction!(fornberg_stencil_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(find_maximum_location_wrapper, m)?)?;
-    Ok(())
-}
-
-/// Test function to make sure the Rust module is working
-#[pyfunction]
-fn rust_hello() -> PyResult<()> {
-    println!("Hi from Rust!");
+    m.add_function(wrap_pyfunction!(find_first_intercept_wrapper, m)?)?;
+    m.add_function(wrap_pyfunction!(find_last_intercept_wrapper, m)?)?;
+    m.add_function(wrap_pyfunction!(fwhm, m)?)?;
     Ok(())
 }
 
@@ -30,6 +27,51 @@ fn rust_hello() -> PyResult<()> {
 #[pyo3(signature = (y, neighbors = 3, /))]
 fn find_maximum_location_wrapper(y: Vec<f64>, neighbors: i64) -> (f64, f64) {
     find_maximum_location(&y, neighbors)
+}
+
+/// Find the first intercept with a value
+/// Args:
+///     y (np.ndarray): the distribution data
+///     intercept_value (float): The value at which to take the intercept
+///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
+/// Returns:
+///     float: "index" of the intercept, a float with non-integer value, indicating where between the pixels the intercept is
+#[pyfunction]
+#[pyo3(name = "find_first_intercept")]
+fn find_first_intercept_wrapper(y: Vec<f64>, intercept_value: f64, neighbors: usize) -> f64 {
+    find_first_intercept(&y, intercept_value, neighbors)
+}
+
+/// Find the last intercept with a value
+/// Args:
+///     y (np.ndarray): the distribution data
+///     intercept_value (float): The value at which to take the intercept
+///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
+/// Returns:
+///     float: "index" of the intercept, a float with non-integer value, indicating where between the pixels the intercept is
+#[pyfunction]
+#[pyo3(name = "find_last_intercept")]
+fn find_last_intercept_wrapper(y: Vec<f64>, intercept_value: f64, neighbors: usize) -> f64 {
+    find_last_intercept(&y, intercept_value, neighbors)
+}
+
+/// Find the full-width-at-half-maximum value of a continuously-spaced distribution.
+///
+/// Args:
+///     y (np.ndarray): the distribution data
+///     dx (float): the x step size of the data
+///     intercept_value (float): The value at which to take the intercepts (i.e. only full-width-at-HALF-max for 0.5)
+///     neighbors (int): The number of neighboring points in each direction to use when constructing interpolants. Higher values are more accurate, but only for smooth data.
+/// Returns:
+///     float: The full width at intercept_value maximum
+#[pyfunction]
+#[pyo3(name = "fwhm")]
+#[pyo3(signature = (y, dx = 1.0, intercept_value = 0.5, neighbors = 2))]
+fn fwhm(y: Vec<f64>, dx: f64, intercept_value: f64, neighbors: usize) -> f64 {
+    let (_, max_value) = find_maximum_location(&y, neighbors as i64);
+    let first_intercept = find_first_intercept(&y, max_value * intercept_value, neighbors);
+    let last_intercept = find_last_intercept(&y, max_value * intercept_value, neighbors);
+    dx * (last_intercept - first_intercept)
 }
 
 /// Generate a finite difference stencil using the algorithm described by B. Fornberg
@@ -145,7 +187,6 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
             .map(|(x, y)| x * y)
             .sum();
     }
-    //println!("derivatives {:?}", derivatives);
 
     let zero_xing_positions: Vec<f64> = (0..=(2 * neighbors))
         .map(|x| (max_index - 1) as f64 + (x as f64) / (neighbors as f64))
@@ -167,4 +208,76 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
         .sum();
 
     (location, interpolated_max)
+}
+fn clamp_index(x0: usize, lower_bound: usize, upper_bound: usize) -> usize {
+    let (lower, upper) = if lower_bound <= upper_bound {
+        (lower_bound, upper_bound)
+    } else {
+        (upper_bound, lower_bound)
+    };
+    std::cmp::max(lower, std::cmp::min(x0, upper))
+}
+
+fn find_first_intercept_core<'a>(
+    y_iter: impl Iterator<Item = &'a f64> + Clone,
+    last_element_index: usize,
+    intercept_value: f64,
+    neighbors: usize,
+) -> f64 {
+    if let Some(intercept_index) = y_iter.clone().position(|x| *x >= intercept_value) {
+        let range_start = clamp_index(
+            intercept_index - neighbors,
+            0usize,
+            last_element_index - 2 * neighbors,
+        );
+        let range_i: Vec<usize> = y_iter
+            .clone()
+            .enumerate()
+            .skip(range_start)
+            .take(2 * neighbors)
+            .scan((None, None), |state, (index, value)| {
+                if state.0.is_none() || *value > state.1.unwrap() {
+                    state.0 = Some(index);
+                    state.1 = Some(*value);
+                    Some(Some(index))
+                } else {
+                    state.0 = Some(index);
+                    state.1 = Some(*value);
+                    Some(None)
+                }
+            })
+            .flatten()
+            .collect();
+
+        let x_positions: Vec<f64> = range_i.iter().map(|x| *x as f64).collect();
+        let y_values: Vec<f64> = y_iter
+            .enumerate()
+            .skip(range_start)
+            .take(2 * neighbors)
+            .filter_map(|(index, value)| range_i.contains(&index).then(|| *value))
+            .collect();
+        let stencil = fornberg_stencil(0, &y_values, intercept_value);
+        stencil
+            .iter()
+            .zip(x_positions.iter())
+            .map(|(a, b)| a * b)
+            .sum()
+    } else {
+        f64::NAN
+    }
+}
+
+fn find_first_intercept(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
+    find_first_intercept_core(y.iter(), y.len() - 1usize, intercept_value, neighbors)
+}
+
+fn find_last_intercept<'a>(y: &[f64], intercept_value: f64, neighbors: usize) -> f64 {
+    let last_element_index = y.len() - 1usize;
+    last_element_index as f64
+        - find_first_intercept_core(
+            y.iter().rev(),
+            last_element_index,
+            intercept_value,
+            neighbors,
+        )
 }
