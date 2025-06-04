@@ -10,7 +10,9 @@ def _():
     import numpy as np
     import attoworld as aw
     import matplotlib.pyplot as plt
-    return aw, mo, np, plt
+    import scipy
+    import timeit
+    return aw, mo, np, plt, scipy
 
 
 @app.cell
@@ -26,7 +28,8 @@ def _(aw, np, plt):
         dx = x[1]-x[0]
         y = np.cos(x)
         y_derivative_analytic = -np.sin(x)
-        y_derivative = aw.numeric.uniform_derivative(y,1,order,boundary='periodic')/dx
+        y_derivative = aw.numeric.derivative(y,1,order)/dx
+        #y_derivative = aw.numeric.derivative_periodic(y,1,order)/dx
         return np.max(np.abs(y_derivative - y_derivative_analytic))
 
     N_pts_range = [16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512]
@@ -47,21 +50,42 @@ def _(aw, np, plt):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Check interpolate()""")
+    mo.md(
+        r"""
+    ## Check interpolate()
+    The interpolate function uses Fornberg's algorithm to generate interpolation stencils. It should have performance and accuracy similar to scipy's CubicSpline when neighbors=3.
+    """
+    )
     return
 
 
 @app.cell
-def _(aw, np, plt):
+def _(aw, np, plt, scipy):
     def plot_interpolate_test():
-        x = np.real(np.linspace(0.0,17.0,24))
-        x_fine = np.real(np.linspace(0.0,17.0,1024))
-        y = np.sin(x**2/10)
-        y_fine = np.sin(x_fine**2/10)
-        x2 = np.linspace(0.0,19.0,60)
-        plt.plot(x,y,'o')
-        plt.plot(x_fine,y_fine)
-        plt.plot(x2,aw.numeric.interpolate(x2, x,y, 3, extrapolate=False),'x')
+        beta = 9.0
+        x = np.real(np.linspace(0.0,16.0,64))
+        x_fine = np.real(np.linspace(0.0,16.0,512))
+        x2 = np.linspace(0.1,15.99,333)
+        y = np.sin(x**2/beta)
+        y_fine = np.sin(x_fine**2/beta)
+
+        y2 = np.sin(x2**2/beta)
+
+        interpolated_rs = aw.numeric.interpolate(x2, x,y, neighbors=3, extrapolate=False)
+        interpolated_scipy = scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2)
+
+        fig,ax = plt.subplots(2,1)
+        ax[0].plot(x,y,'o', label="Input data")
+        ax[0].plot(x2, interpolated_rs, label="aw.numeric.interpolate")
+        ax[0].plot(x2,interpolated_scipy,'--',label="scipy.interpolate.CubicSpline")
+        ax[0].set_xlabel("x")
+        ax[0].set_ylabel("y")
+        ax[0].legend()
+        ax[1]. semilogy(x2, np.abs(y2 - interpolated_rs),label="aw.numeric.interpolate")
+        ax[1]. plot(x2, np.abs(y2 - interpolated_scipy),label="scipy.interpolate.CubicSpline")
+        ax[1].set_xlabel("x")
+        ax[1].set_ylabel("Error")
+        ax[1].legend()
 
     plot_interpolate_test()
     aw.plot.showmo()
@@ -90,7 +114,7 @@ def _(N_pts_range, aw, np, plt):
             i_max = np.argmax(y)
             hm = y[i_max] / 2
             return (np.max(x[np.argwhere(y >= hm)]) - np.min(x[np.argwhere(y >= hm)]))
-        
+
         for i in range(len(N_pts_range)):
             x = np.linspace(-5, 5, N_pts_range[i])
             dx = x[1]-x[0]

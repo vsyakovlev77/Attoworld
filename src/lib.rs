@@ -1,6 +1,7 @@
 use std::f64;
 
 use pyo3::prelude::*;
+use rayon::prelude::*;
 
 /// Functions written in Rust for improved performance and correctness.
 #[pymodule]
@@ -11,6 +12,9 @@ fn attoworld_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(find_first_intercept_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(find_last_intercept_wrapper, m)?)?;
     m.add_function(wrap_pyfunction!(fwhm, m)?)?;
+    m.add_function(wrap_pyfunction!(interpolate_sorted_1d, m)?)?;
+    m.add_function(wrap_pyfunction!(derivative_wrapper, m)?)?;
+    m.add_function(wrap_pyfunction!(derivative_periodic_wrapper, m)?)?;
     Ok(())
 }
 
@@ -209,6 +213,172 @@ fn find_maximum_location(y: &[f64], neighbors: i64) -> (f64, f64) {
 
     (location, interpolated_max)
 }
+
+/// Interpolate sorted data, given a list of intersection locations
+///
+/// Args:
+///     x_out (np.ndarray): array of output x values, the array onto which y_in will be interpolated
+///     x_in (np.ndarray): array of input x values
+///     y_in (np.ndarray): array of input y values
+///     locations (np.ndarray): array of approximate intersection points, np.searchsorted(x_in, x_out, side='left')
+///     neighbors (int): number of nearest neighbors to include in the interpolation
+///     extrapolate (bool): unless set to true, values outside of the range of x_in will be zero
+///     derivative_order(int): order of derivative to take. 0 (default) is plain interpolation, 1 takes first derivative, and so on.
+///
+/// Returns:
+///     np.ndarray: the interpolated y_out
+#[pyfunction]
+#[pyo3(signature = (x_out, x_in, y_in, locations, /, neighbors=2, extrapolate=false, derivative_order=0))]
+fn interpolate_sorted_1d(
+    x_out: Vec<f64>,
+    x_in: Vec<f64>,
+    y_in: Vec<f64>,
+    locations: Vec<usize>,
+    neighbors: i64,
+    extrapolate: bool,
+    derivative_order: usize,
+) -> Vec<f64> {
+    interpolate_sorted_1d_slice(
+        &x_out,
+        &x_in,
+        &y_in,
+        &locations,
+        neighbors,
+        extrapolate,
+        derivative_order,
+    )
+}
+
+fn interpolate_sorted_1d_slice(
+    x_out: &[f64],
+    x_in: &[f64],
+    y_in: &[f64],
+    locations: &[usize],
+    neighbors: i64,
+    extrapolate: bool,
+    derivative_order: usize,
+) -> Vec<f64> {
+    x_out
+        .par_iter()
+        .zip(locations.par_iter())
+        .map(|(x, index)| {
+            if (*index == 0 || *index == x_in.len()) && !extrapolate {
+                0.0
+            } else {
+                let mut clamped_index: usize =
+                    clamp_index(*index as i64, neighbors, x_in.len() as i64 - neighbors)
+                        - neighbors as usize;
+
+                let stencil_size: usize = if clamped_index == 0 {
+                    (2 * neighbors + 1) as usize
+                } else if clamped_index as i64 == x_in.len() as i64 - 2 * neighbors {
+                    clamped_index -= 1usize;
+                    (2 * neighbors + 1) as usize
+                } else {
+                    (2 * neighbors) as usize
+                };
+
+                //finite difference stencil with order 0 is interpolation
+                let stencil = fornberg_stencil(
+                    derivative_order,
+                    &x_in[clamped_index..(clamped_index + stencil_size)],
+                    *x,
+                );
+                y_in.iter()
+                    .skip(clamped_index)
+                    .take(stencil_size)
+                    .zip(stencil)
+                    .map(|(a, b)| a * b)
+                    .sum()
+            }
+        })
+        .collect()
+}
+
+///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+/// by using modified stencils that only use internal points.
+///
+/// Args:
+///     data (np.ndarray): the data whose derivative should be taken
+///     order (int): the order of the derivative
+///     neighbors (int): the number of nearest neighbors to consider in each direction.
+/// Returns:
+///     np.ndarray: the derivative
+#[pyfunction]
+#[pyo3(name = "derivative")]
+#[pyo3(signature = (y, order, /, neighbors=3))]
+fn derivative_wrapper(y: Vec<f64>, order: usize, neighbors: usize) -> Vec<f64> {
+    derivative(&y, order, neighbors)
+}
+///     Use a Fornberg stencil to take a derivative of arbitrary order and accuracy, handling the edge
+/// by treating it as a periodic boundary
+///
+/// Args:
+///     data (np.ndarray): the data whose derivative should be taken
+///     order (int): the order of the derivative
+///     neighbors (int): the number of nearest neighbors to consider in each direction.
+/// Returns:
+///     np.ndarray: the derivative
+#[pyfunction]
+#[pyo3(name = "derivative_periodic")]
+#[pyo3(signature = (y, order, /, neighbors=3))]
+fn derivative_periodic_wrapper(y: Vec<f64>, order: usize, neighbors: usize) -> Vec<f64> {
+    derivative_periodic(&y, order, neighbors)
+}
+
+fn derivative(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
+    let positions: Vec<f64> = (0..(2 * neighbors + 1))
+        .map(|a| a as f64 - neighbors as f64)
+        .collect();
+    let front_edge_positions: Vec<f64> = (0..=(2 * neighbors + 2)).map(|a| a as f64).collect();
+    let rear_edge_positions: Vec<f64> = front_edge_positions
+        .iter()
+        .map(|a| a + (y.len() - 2 * neighbors - 3) as f64)
+        .collect();
+    let inner_stencil = fornberg_stencil(order, &positions, 0.0);
+    (0..y.len())
+        .map(|index| {
+            if index < neighbors {
+                let stencil = fornberg_stencil(order, &front_edge_positions, index as f64);
+                stencil
+                    .iter()
+                    .zip(y.iter())
+                    .map(|(stencil_val, y_val)| *stencil_val * (*y_val))
+                    .sum()
+            } else if index > y.len() - neighbors - 1 {
+                let stencil = fornberg_stencil(order, &rear_edge_positions, index as f64);
+                stencil
+                    .iter()
+                    .zip(y.iter().skip(y.len() - 2 * neighbors - 3))
+                    .map(|(stencil_val, y_val)| *stencil_val * *y_val)
+                    .sum()
+            } else {
+                y[index - neighbors..index + neighbors + 1]
+                    .iter()
+                    .zip(inner_stencil.iter())
+                    .map(|(stencil_val, y_val)| *stencil_val * *y_val)
+                    .sum()
+            }
+        })
+        .collect()
+}
+
+fn derivative_periodic(y: &[f64], order: usize, neighbors: usize) -> Vec<f64> {
+    let positions: Vec<f64> = (0..(2 * neighbors + 1))
+        .map(|a| a as f64 - neighbors as f64)
+        .collect();
+    let stencil = fornberg_stencil(order, &positions, 0.0);
+    (0..y.len())
+        .map(|index| {
+            stencil
+                .iter()
+                .zip(y.iter().cycle().skip(y.len() - neighbors + index))
+                .map(|(a, b)| *a * *b)
+                .sum()
+        })
+        .collect()
+}
+
 fn clamp_index(x0: i64, lower_bound: i64, upper_bound: i64) -> usize {
     let (lower, upper) = if lower_bound <= upper_bound {
         (lower_bound, upper_bound)
