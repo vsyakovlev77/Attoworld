@@ -29,7 +29,7 @@ def _(aw, np, plt):
         y_derivative = aw.numeric.uniform_derivative(y,1,order,boundary='periodic')/dx
         return np.max(np.abs(y_derivative - y_derivative_analytic))
 
-    N_pts_range = [16, 32, 64, 128, 256, 512]
+    N_pts_range = [16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512]
     order_range = range(1,6)
 
     convergence_data = np.array([[convergence_check(_order, _n) for _n in N_pts_range] for _order in order_range])
@@ -42,7 +42,7 @@ def _(aw, np, plt):
     plt.ylim(1e-15, 0.1)
     plt.legend()
     aw.plot.showmo()
-    return
+    return (N_pts_range,)
 
 
 @app.cell
@@ -69,26 +69,44 @@ def _(aw, np, plt):
 
 
 @app.cell
-def _(aw, np, plt):
-    ix = np.linspace(-5, 5, 65)
-    _dx = ix[1]-ix[0]
-    iy = np.exp(-ix**2/2)
-    plt.plot(iy)
+def _(mo):
+    mo.md(
+        r"""
+    ## Check FWHM error
+    Note that the aw.numeric.fwhm() function has a much smaller error than the implementation I've seen elsewhere (which only reduces in error linearly with step size).
+    """
+    )
+    return
 
-    interpolated_position, interpolated_max = aw.attoworld_rs.find_maximum_location(iy, 3)
-    raw_max = np.max(iy)
-    raw_argmax = np.argmax(iy)
 
-    first_intercept = aw.attoworld_rs.find_first_intercept(iy, 0.5, 2)
-    last_intercept = aw.attoworld_rs.find_last_intercept(iy, 0.5, 2)
-    fwhm = aw.attoworld_rs.fwhm(iy, _dx)
+@app.cell
+def _(N_pts_range, aw, np, plt):
+    def plot_fwhm_convergence():
+        true_fwhm = 2*np.sqrt(2.0 * np.log(2.0))
+        fwhm = []
+        fwhm_th = []
+        dx_array = []
+        def old_fwhm(y, x):
+            i_max = np.argmax(y)
+            hm = y[i_max] / 2
+            return (np.max(x[np.argwhere(y >= hm)]) - np.min(x[np.argwhere(y >= hm)]))
+        
+        for i in range(len(N_pts_range)):
+            x = np.linspace(-5, 5, N_pts_range[i])
+            dx = x[1]-x[0]
+            y = np.exp(-x**2/2)
+            fwhm.append(aw.attoworld_rs.fwhm(y, dx))
+            fwhm_th.append(old_fwhm(y,x))
+            dx_array.append(dx)
+        plt.loglog(N_pts_range, dx_array, label="time step")
+        plt.loglog(N_pts_range, np.abs(fwhm-true_fwhm), label="FWHM in attoworld.numeric")
+        plt.loglog(N_pts_range, np.abs(fwhm_th-true_fwhm), label="index-based FWHM")
+        plt.xlabel("# of points")
+        plt.ylabel("Error")
+        plt.legend()
 
-    print(f"find_maximum_location gives maximum at ({interpolated_position},{interpolated_max})")
-    print(f"raw indexing gives maximum at ({raw_argmax},{raw_max})")
-    print(f"first intercept float index: {first_intercept}")
-    print(f"fwhm (from function): {fwhm}")
-    print(f"last intercept float index: {last_intercept}")
 
+    plot_fwhm_convergence()
     aw.plot.showmo()
     return
 

@@ -1,15 +1,13 @@
 from copy import deepcopy
 import numpy as np
-from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib
 import matplotlib.pyplot as plt
 import scipy.optimize
 import scipy.special
 import scipy.signal
-import h5py
 import pandas
 import math
-
+from ..numeric import fwhm, find_maximum_location
 
 e = 1.602176462e-19
 hbar = 1.05457159682e-34
@@ -122,7 +120,7 @@ def asymmetric_tukey_window(x, edge1: float, edge2: float, edge1_width: float, e
 
 class TraceHandler:
     """Loads and stores the trace (field vs time) saved to file (two columns, tab separated) or given in the form of time and field [or wavelengths, spectrum and phase] arrays.
-    
+
     ALL THE TIMES ARE IN fs, FREQUENCIES IN PHz, WAVELENGTHS IN nm
 
     Most of the class methods modify the object data in place, and don't return anything.
@@ -156,7 +154,7 @@ class TraceHandler:
     """
     def __init__(self, filename=None, filename_spectrum=None, time=None, field=None, stdev=None, wvl=None, spectrum=None, wvl_FFT_trace=None, spectrum_FFT_trace=None, phase_FFT_trace=None):
         """constructor; loads the trace from file (or from time-field or wavelegth-spectrum-phase arrays) and stores it in the class.
-        
+
         One of the following must be provided:
         - filename: the name of the file containing the trace (two columns, tab separated)
         - time and field: the time vector (fs) and electric field vector (a.u.)
@@ -651,8 +649,8 @@ class TraceHandler:
         """
         # careful: the time grid should be fine enough to resolve the maximum of the envelope
         t, en = self.get_envelope()
-        i_max = np.argmax(en)
-        self.zero_delay = t[i_max]
+        dt = t[1]-t[0]
+        self.zero_delay = t[0] + dt * find_maximum_location(en)
         return self.zero_delay
 
     def get_FWHM(self):
@@ -664,11 +662,8 @@ class TraceHandler:
             FWHM: float
         """
         t, en = self.get_envelope()
-        i_max = np.argmax(en**2)
-        hm = en[i_max]**2 / 2
-        enSquare = en**2
-        fwhm = (np.max(t[np.argwhere(enSquare >= hm)]) - np.min(t[np.argwhere(enSquare >= hm)]))
-        return fwhm
+        dt = t[1] - t[0]
+        return fwhm(en**2, dt)
 
     def fft_tukey_bandpass(self, lowWavelengthEdge, upWavelengthEdge, lowEdgeWidth, highEdgeWidth):
         """applies a bandpass filter to the trace in the frequency domain using a tukey window.
@@ -1144,7 +1139,7 @@ class MultiTraceHandler:
         plt.show()
 
     def plot_spectra(self, low_lim=50, up_lim=1000, labels=None, offset=0.015):
-        """plots all spectra. 
+        """plots all spectra.
 
         ARGUMENTS (Optional, See plot_traces() docs):
             low_lim
@@ -1173,9 +1168,3 @@ class MultiTraceHandler:
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim, up_lim)
         plt.show()
-
-
-
-
-
-

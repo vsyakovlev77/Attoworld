@@ -1,4 +1,3 @@
-import pytest
 import attoworld as aw
 import numpy as np
 
