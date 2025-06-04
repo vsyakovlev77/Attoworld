@@ -650,7 +650,8 @@ class TraceHandler:
         # careful: the time grid should be fine enough to resolve the maximum of the envelope
         t, en = self.get_envelope()
         dt = t[1]-t[0]
-        self.zero_delay = t[0] + dt * find_maximum_location(en)
+        max_index, max_value = find_maximum_location(en)
+        self.zero_delay = t[0] + dt * max_index
         return self.zero_delay
 
     def get_FWHM(self):
