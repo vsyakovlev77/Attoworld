@@ -290,7 +290,8 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
                      darkTupleList = None, normalizationList = None, color_gradient: bool = False,
                      additive_constant_log_intensity = 20, wavelength_range = None,
                      title = None, invert_order: bool = False, plotList = None, do_calibrate: bool = True,
-                     stitch: bool = False, smooth_points: int = 10):
+                     stitch: bool = False, smooth_points: int = 10,
+                     calibration_file_path="./calibration_data/Reso_Spectrometer_CalibrationCorrection.npz"):
     """Plotting function for the UV spectrometer.
 
         Notice: The excel file usually contains several spectra.
@@ -310,6 +311,7 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
             plotList: list of booleans: this function will plot the entry filenameList[i] if plotList[i] = True, otherwise the i-th data will not be shown in the plot
             invert_order: Boolean, if True, the order of the spectra will be inverted (i.e. the last spectrum in the list will be plotted first)
             do_calibrate: Boolean, if True, the spectra will be calibrated (default True, see calibrate() function)
+            calibration_file_path: str, path to the calibration file (default "./calibration_data/Reso_Spectrometer_CalibrationCorrection.npz"). Ignored if do_calibrate = False
             stitch: Boolean, if True, the spectra will be stitched together (optional, default False)
                 if True, the spectrum will be calculated by stitching the 5 partial spectra in the previous columns.
                 the stitching only works if the spectrum number 'column' is a FULL-SPECTRUM in the xls file.
@@ -398,9 +400,9 @@ def plot_spectra_UVsp(filenameList, columnList, pdfFilename, legendItemList = No
         for i in range(len(dataList)):
             if darkTupleList is not None:
                 dark = read_spectrometer_excel(darkTupleList[i][0])
-                dataList[i][:, 7*columnList[i]+1], dataList[i][:, 7*columnList[i]+2] = calibrate(dataList[i], columnList[i], dark = dark, dark_c = darkTupleList[i][1], stitch = stitch, smooth_points = smooth_points)
+                dataList[i][:, 7*columnList[i]+1], dataList[i][:, 7*columnList[i]+2] = calibrate(dataList[i], columnList[i], calibration_file_path=calibration_file_path, dark = dark, dark_c = darkTupleList[i][1], stitch = stitch, smooth_points = smooth_points)
             else:
-                dataList[i][:, 7*columnList[i]+1], dataList[i][:, 7*columnList[i]+2] = calibrate(dataList[i], columnList[i], dark = None, dark_c = None, stitch = stitch, smooth_points = smooth_points)
+                dataList[i][:, 7*columnList[i]+1], dataList[i][:, 7*columnList[i]+2] = calibrate(dataList[i], columnList[i], calibration_file_path=calibration_file_path, calibration_dark = None, dark_c = None, stitch = stitch, smooth_points = smooth_points)
 
     n_lines = len(dataList)
     if color_gradient:

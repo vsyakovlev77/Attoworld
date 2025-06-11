@@ -106,46 +106,41 @@ def asymmetric_tukey_window(x, edge1: float, edge2: float, edge1_width: float, e
 class TraceHandler:
     """Loads and stores the trace (field vs time) saved to file (two columns, tab separated) or given in the form of time and field [or wavelengths, spectrum and phase] arrays.
 
-    ALL THE TIMES ARE IN fs, FREQUENCIES IN PHz, WAVELENGTHS IN nm
+    ALL THE TIMES ARE IN fs, FREQUENCIES IN PHz, WAVELENGTHS IN nm.
 
     Most of the class methods modify the object data in place, and don't return anything.
 
-    MEMBERS:
+    Attributes:
+        fieldTimeV: (WAVEFORM DATA in the time domain) time array (fs)
+        fieldV: (WAVEFORM DATA in the time domain) field array
+        fieldStdevV: (WAVEFORM DATA in the time domain) field standard deviation (or sigma) array
 
-        TRACE (WAVEFORM) DATA in the time domain
-        self.fieldTimeV                 time array (fs)
-        self.fieldV                     field array
-        self.fieldStdevV                field standard deviation (or sigma) array
+        frequencyAxis: (WAVEFORM DATA in the frequency domain) frequency axis of the FFT in PHz (should be np.fft compatible, i.e., equally spaced, in the form [0, df, 2*df, ..., fmax, -fmax[-df], ..., -df])
+        fftFieldV: (WAVEFORM DATA in the frequency domain) FFT field (complex)
+        complexFieldTimeV: (WAVEFORM DATA in the frequency domain) time axis of the complex field (fs)
+        complexFieldV: (WAVEFORM DATA in the frequency domain) complex field ( = IFFT{FFT(ω)θ(ω)}(t), where θ(ω) = 1 if ω >= 0, θ(ω) = 0 otherwise )
+        wvlAxis: (WAVEFORM DATA in the frequency domain) wavelength axis for the FFT spectrum (nm)
+        fftSpectrum: (WAVEFORM DATA in the frequency domain) wavelength-dependent positive FFT spectrum ( = |FFT{field}|^2 * df/dλ, λ > 0 )
+        fftphase: (WAVEFORM DATA in the frequency domain) wavelength-dependent spectral phase
 
-        TRACE (WAVEFORM) DATA in the frequency domain
-        self.frequencyAxis              frequency axis of the FFT in PHz (should be np.fft compatible, i.e., equally spaced, in the form [0, df, 2*df, ..., fmax, -fmax[-df], ..., -df])
-        self.fftFieldV                  FFT field (complex)
-        self.complexFieldTimeV          time axis of the complex field (fs)
-        self.complexFieldV              complex field ( = IFFT{FFT(ω)θ(ω)}(t), where θ(ω) = 1 if ω >= 0, θ(ω) = 0 otherwise )
-        self.wvlAxis                    wavelength axis for the FFT spectrum (nm)
-        self.fftSpectrum                wavelength-dependent positive FFT spectrum ( = |FFT{field}|^2 * df/dλ, λ > 0 )
-        self.fftphase                   wavelength-dependent spectral phase
+        wvlSpectrometer: (SPECTROMETER DATA) wavelength (nm)
+        ISpectrometer: (SPECTROMETER DATA) spectral intensity
 
-        SPECTROMETER DATA
-        self.wvlSpectrometer            wavelength (nm)
-        self.ISpectrometer              spectral intensity
-
-        MISCELLANEOUS:
-        self.fsZeroPadding (= 150 by default)        time span in fs for zero padding (appending zeroes both before and after the trace, in order to get a smoother fft)
-        self.filename                   filename to load the trace from
-        self.filename_spectrum          filename to load the spectrum from
-        self.normalization_trace        normalization factor for the trace
-        self.zero_delay                 time zero, corresponds to the maximum envelope
+        fsZeroPadding: (= 150 by default) time span in fs for zero padding (appending zeroes both before and after the trace, in order to get a smoother fft)
+        filename: filename to load the trace from
+        filename_spectrum: filename to load the spectrum from
+        normalization_trace: normalization factor for the trace
+        zero_delay: time zero, corresponds to the maximum envelope
     """
     def __init__(self, filename=None, filename_spectrum=None, time=None, field=None, stdev=None, wvl=None, spectrum=None, wvl_FFT_trace=None, spectrum_FFT_trace=None, phase_FFT_trace=None):
-        """constructor; loads the trace from file (or from time-field or wavelegth-spectrum-phase arrays) and stores it in the class.
+        """Constructor; loads the trace from file (or from time-field or wavelegth-spectrum-phase arrays) and stores it in the class.
 
-        One of the following must be provided:
-        - filename: the name of the file containing the trace (two columns, tab separated)
-        - time and field: the time vector (fs) and electric field vector (a.u.)
-        - wvl_FFT_trace, spectrum_FFT_trace and phase_FFT_trace: the wavelength (nm) spectrum (a.u.) and phase (rad) vectors
+        One of the following must be provided (as a default all args are None):
+        * filename: the name of the file containing the trace (two columns, tab separated)
+        * time and field: the time vector (fs) and electric field vector (a.u.)
+        * wvl_FFT_trace, spectrum_FFT_trace and phase_FFT_trace: the wavelength (nm) spectrum (a.u.) and phase (rad) vectors
 
-        ARGUMENTS (technically all optional):
+        Args:
             filename (str): the name of the file containing the trace (two columns - time and field, tab separated)
             filename_spectrum (str): the name of the file containing the spectrum (two columns - wavelength and spectral intensity, tab separated)
                 this does not correspond to the fourier transform of the trace, but to some spectrometer data that you would like to compare to the loaded trace
@@ -200,7 +195,7 @@ class TraceHandler:
 
         The spectrum does not correspond to the fourier transform of the trace, but to some spectrometer data that you would like to compare with the loaded trace
 
-        ARGUMENTS:
+        Args:
             wvl: wavelength array (nm)
             spectrum: spectral intensity array
         """
@@ -212,7 +207,7 @@ class TraceHandler:
     def load_trace_from_arrays(self, fieldTimeV, fieldV, fieldStdevV=None):
         """loads the trace from time and field arrays and stores it in the class.
 
-        ARGUMENTS:
+        Args:
             fieldTimeV: time array (fs)
             fieldV: field array
             fieldStdevV: standard deviation - or sigma - to be associated to the trace (optional, default = None)
@@ -245,7 +240,7 @@ class TraceHandler:
 
         This function has a different job than load_spectrum_from_arrays(): in fact, it retrieves the trace from the given spectral data via fourier transform.
 
-        ARGUMENTS:
+        Args:
             wvl_FFT_trace: wavelength array in nm
             spectrum_FFT_trace: (wavelength-)spectral intensity array. This is assumed to be |FFT{field}|^2 * df/dλ
             phase_FFT_trace: spectral phase in rad
@@ -301,8 +296,8 @@ class TraceHandler:
 
         The spectrum does not correspond to the fourier transform of the trace, but to the spectrometer data that you would like to compare with the loaded trace
 
-        ARGUMENTS:
-            filename
+        Args:
+            fname: filename
         """
         if fname is not None:
             self.filename_spectrum = fname
@@ -314,7 +309,7 @@ class TraceHandler:
     def update_fft(self, zero_pad_field = True):
         """updates the fft of the trace from the time domain data.
 
-        OPTIONAL ARGUMENTS:
+        Args:
             zero_pad_field: bool; if true (default) add zeros before and after the trace before computing fft (for a smoother spectrum)
                 The length of appended zeros is defined by self.fsZeroPadding.
         """
@@ -328,9 +323,9 @@ class TraceHandler:
         """Updates the wavelength-dependent intensity spectrum. Results are stored in self.wvlAxis and self.fftSpectrum.
 
         This is (derived from but) different from the fourier transform because:
-         - it considers the squared modulus of the field
-         - it multiplies the frequency-dependent spectral density by df/dλ = c/λ²
-         - it considers only positive wavelengths
+         * it considers the squared modulus of the field
+         * it multiplies the frequency-dependent spectral density by df/dλ = c/λ²
+         * it considers only positive wavelengths
 
         The function internally calls update_spectral_phase() as well.
         """
@@ -341,7 +336,7 @@ class TraceHandler:
         self.normalize_fft_spectrum()
 
     def update_spectral_phase(self):
-        """computes the spectral phase of the trace. Result is stored in self.fftphase.
+        """computes the spectral phase of the trace. The result is stored in self.fftphase.
 
         An attempt of automatic linear phase subtraction is made. Phase is unwrapped.
         """
@@ -365,7 +360,7 @@ class TraceHandler:
 
     def update_trace_from_fft(self):        # remember to use together with strip_from_trace
                                             # careful: the complex part of the IFFT is discarded
-        """updates the field trace from fft
+        """Updates the field trace from fft
 
         In most cases, you might want to call strip_from_trace() afterward, to eliminate the zero-padding from the trace.
         """
@@ -379,7 +374,7 @@ class TraceHandler:
 
         Useful when retrieving the trace via ifft (method update_trace_from_fft()).
 
-        OPTIONAL ARGUMENTS:
+        Args:
             timeRange (float): the time range (fs) to strip from the beginning and end of the trace. If None (default), fsZeroPadding is used.
         """
         if timeRange is None:
@@ -424,18 +419,18 @@ class TraceHandler:
     def tukey_time_window(self, lowEdge, upEdge, lowEdgeWidth, upEdgeWidth):
         """applies a tukey window to the trace in the time domain.
 
-        ARGUMENTS:
-            lowEdge, upEdge = lower and upper edge of the window upEdge-lowEdge = FWHM of the window
-            lowEdgeWidth, upEdgeWidth = width of the cosine-shaped edges (from 0 to 1 or viceversa)
+        Args:
+            lowEdge, upEdge: lower and upper edge of the window upEdge-lowEdge = FWHM of the window
+            lowEdgeWidth, upEdgeWidth: width of the cosine-shaped edges (from 0 to 1 or viceversa)
         """
         window = asymmetric_tukey_window(np.abs(self.fieldTimeV), lowEdge, upEdge, lowEdgeWidth, upEdgeWidth)
         self.fieldV = self.fieldV * window
         self.update_fft()
 
     def fourier_interpolation(self, ntimes_finer: int):
-        """shrinks the time step of the trace in time domain by a factor ntimes_finer.
+        """Shrinks the time step of the trace in time domain by a factor ntimes_finer.
 
-        this is done by 'zero-padding' the fourier transform of the trace, i.e., by extending the frequency axis by a factor ntimes_finer, and adding corresponding zeros to the FFT field.
+        This is done by 'zero-padding' the fourier transform of the trace, i.e., by extending the frequency axis by a factor ntimes_finer, and adding corresponding zeros to the FFT field.
 
         Args:
             ntimes_finer (int): the factor by which to shrink the time step of the trace in time domain. Must be >= 1.
@@ -469,7 +464,7 @@ class TraceHandler:
     def differentiate_trace(self, spectrally=True):
         """computes the time derivative of the trace.
 
-        ARGUMENTS (Optional):
+        Args:
             spectrally: bool; if True (default) the derivative will be computed in the spectral domain (maybe more stable numerically)
         """
         if spectrally:
@@ -483,8 +478,8 @@ class TraceHandler:
     def integrate_trace(self, spectrally=True):
         """integrates the trace in time.
 
-            ARGUMENTS (Optional):
-        spectrally: bool; if True (default) the integral will be computed in the spectral domain (maybe more stable numerically)
+        Args:
+            spectrally (bool): if True (default) the integral will be computed in the spectral domain (maybe more stable numerically)
         """
         if spectrally:
             if self.frequencyAxis[0] != 0:
@@ -497,12 +492,10 @@ class TraceHandler:
             self.update_fft()
 
     def save_trace_to_file(self, filename, low_lim=None, up_lim=None):
-        """saves the trace to file
+        """Saves the trace to file
 
-        ARGUMENTS:
+        Args:
             filename
-
-        OPTIONAL ARGUMENTS:
             low_lim, up_lim: only save the trace between low_lim and up_lim (default: None, None)
         """
         if low_lim is not None and up_lim is not None:
@@ -515,7 +508,7 @@ class TraceHandler:
         data.to_csv(filename, sep='\t', index=False)
 
     def normalize_spectrum(self):
-        """normalizes the comparison spectrum to its integral."""
+        """Normalizes the comparison spectrum to its integral."""
         spectrum_range = [60, 930]
         n_factor = (np.abs(np.diff(self.wvlSpectrometer)[(self.wvlSpectrometer[:-1] > spectrum_range[0]) & (
                     self.wvlSpectrometer[:-1] < spectrum_range[1])]) *
@@ -524,7 +517,7 @@ class TraceHandler:
         self.ISpectrometer /= n_factor
 
     def normalize_fft_spectrum(self, spectrum_range = [60, 930]):
-        """normalizes the spectrum of the trace (|FFT{trace}|^2 * df/dλ) to its integral (area)
+        """Normalizes the spectrum of the trace (|FFT{trace}|^2 * df/dλ) to its integral (area)
 
         Args:
             spectrum_range (list): the range of wavelengths (nm) to consider for the normalization. Default is [60, 930] nm.
@@ -536,23 +529,23 @@ class TraceHandler:
         self.fftSpectrum /= n_factor
 
     def get_trace(self):
-        """returns the time (fs) and field arrays. Field is in a.u. unless set_fluence() was called or a calibrated field was given as an input."""
+        """Returns the time (fs) and field arrays. Field is in a.u. unless set_fluence() was called or a calibrated field was given as an input."""
         return self.fieldTimeV, self.fieldV
 
     def get_spectrum_trace(self):
-        """returns the wavelength and spectral intensity corresponding to the fourier transform of the trace."""
+        """Returns the wavelength and spectral intensity corresponding to the fourier transform of the trace."""
         return self.wvlAxis, self.fftSpectrum
 
     def get_spectral_phase(self):
-        """returns the wavelength array and the spectral phase array corresponding to the FFT of the trace."""
+        """Returns the wavelength array and the spectral phase array corresponding to the FFT of the trace."""
         return self.wvlAxis, self.fftphase
 
     def get_stdev(self):
-        """returns only the standard deviation (sigma) array"""
+        """Returns only the standard deviation (sigma) array"""
         return self.fieldStdevV
 
     def get_positive_fft_field(self):
-        """returns the positive frequency axis f and the corresponding FFT field (complex).
+        """Returns the positive frequency axis f and the corresponding FFT field (complex).
 
         Main task of this function is to 'smooth' the phase of the fft (= remove linear phase, corresponding to a time shift in the temporal domain), since the waveform is usually centered around t = 0"""
         if self.frequencyAxis is None or self.fftFieldV is None:
@@ -569,29 +562,30 @@ class TraceHandler:
         return positive_freq, positive_fft_field
 
     def get_fluence(self):
-        """calculate the fluence of the trace.
+        """Calculates the fluence of the trace.
 
         convention: field [V/Å], time [fs], fluence [J/cm²]
-        F = c*epsilon_0*integral(E^2)dt
+        F = c\*eps_0\*integral(E^2)dt
 
-        RETURNS:
+        returns:
             fluence: float
         """
         F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
         return F
 
     def set_fluence(self, fluence):
-        """set the fluence of the trace.
+        """Set the fluence of the trace.
 
-        convention: field [V/Å], time [fs], fluence [J/cm²]
-        F = c*epsilon_0*integral(E^2)dt"""
+        Convention: field [V/Å], time [fs], fluence [J/cm²]
+
+        F = c\*eps_0\*integral(E^2)dt"""
         F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
         self.fieldV *= np.sqrt(fluence/F)
         self.update_fft()
         self.update_fft_spectrum()
 
     def compute_complex_field(self):
-        """computes the complex trace by inverting the positive-freq FFT and stores it in self.complexFieldV (for envelope or phase computation, for example)
+        """Computes the complex trace by inverting the positive-freq FFT and stores it in self.complexFieldV (for envelope or phase computation, for example)
 
         Notice that the fourier transform of the trace is not computed, it is assumed to be already stored in the class. This should be true in most cases."""
         complex_spectrum = deepcopy(self.fftFieldV)
@@ -601,9 +595,9 @@ class TraceHandler:
         self.strip_from_complex_trace()
 
     def get_envelope(self):
-        """get the envelope of the trace.
+        """Get the envelope of the trace.
 
-        RETURNS:
+        Returns:
             time array (fs)
             envelope array
             """
@@ -612,11 +606,11 @@ class TraceHandler:
         return self.complexFieldTimeV, np.abs(self.complexFieldV)
 
     def get_phase(self):
-        """get the instantaneous phase of the trace.
+        """Get the instantaneous phase of the trace.
 
         If complexFieldV is already computed and stored, no re-calculation occurs
 
-        RETURNS:
+        Returns:
             time array (fs)
             instantaneous phase array (fs)
         """
@@ -625,11 +619,11 @@ class TraceHandler:
         return self.complexFieldTimeV, np.angle(self.complexFieldV)
 
     def get_zero_delay(self):
-        """get the time value corresponding to the envelope peak.
+        """Get the time value corresponding to the envelope peak.
 
-        ATTENTION: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
+        Attention: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
 
-        RETURNS
+        Returns:
             zero_delay: float
         """
         # careful: the time grid should be fine enough to resolve the maximum of the envelope
@@ -642,7 +636,7 @@ class TraceHandler:
     def get_FWHM(self):
         """get the FWHM of the trace.
 
-        ATTENTION: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
+        Attention: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
 
         RETURNS
             FWHM: float
@@ -652,13 +646,13 @@ class TraceHandler:
         return fwhm(en**2, dt)
 
     def fft_tukey_bandpass(self, lowWavelengthEdge, upWavelengthEdge, lowEdgeWidth, highEdgeWidth):
-        """applies a bandpass filter to the trace in the frequency domain using a tukey window.
+        """Applies a bandpass filter to the trace in the frequency domain using a tukey window.
 
         The tukey window is 1 between  lowWavelengthEdge+lowEdgeWidth/2  and  upWavelengthEdge-highEdgeWidth/2
         and it is reaches zero at lowWavelengthEdge-lowEdgeWidth/2  and  upWavelengthEdge+highEdgeWidth/2.
         Notice that the edges are only cosine-shaped in the frequency domain. In the wavelength domain upWavelengthEdge - lowWavelengthEdge does not coincide with the FWHM of the tukey function
 
-        ARGUMENTS:
+        Args:
             lowWavelengthEdge: float (nm)
             upWavelengthEdge: float (nm)
             lowEdgeWidth: float (nm)
@@ -682,9 +676,9 @@ class TraceHandler:
         self.strip_from_trace()
 
     def apply_transmission(self, wavelengths, f):
-        """applies a spectral transmission function to the trace (e.g. spectral filter).
+        """Applies a spectral transmission function to the trace (e.g. spectral filter).
 
-        ARGUMENTS:
+        Args:
             wavelengths: ndarray = wavelength array (nm)
             f: ndarray = transmission function f(λ)
         """
@@ -717,14 +711,14 @@ class TraceHandler:
         self.strip_from_trace()
 
     def apply_spectrum(self, wvl = None , spectrum = None, CEP_shift: float = 0., stripZeroPadding: bool = True):
-        """applies a spectrum to the phase of the trace. This means that a new trace is computed and stored in the TraceHandler object (replacing the existing one);
+        """Applies a spectrum to the phase of the trace. This means that a new trace is computed and stored in the TraceHandler object (replacing the existing one);
         the new trace has spectral intensity equal to the applied spectrum and spectral phase equal to the phase of the existing trace.
 
-        ARGUMENTS (Optional):
-            wvl = wavelength array (nm). If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
-            spectrum = spectral intensity array. If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
-            CEP_shift = a possible artificial phase shift IN UNITS OF PI! (default = 0)
-            stripZeroPadding: bool = whether to eliminate the zero padding (zeros appended to the trace). Default is True"""
+        Args:
+            wvl: wavelength array (nm). If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
+            spectrum: spectral intensity array. If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
+            CEP_shift: a possible artificial phase shift IN UNITS OF PI! (default = 0)
+            stripZeroPadding (bool): whether to eliminate the zero padding (zeros appended to the trace). Default is True"""
         if wvl is None or spectrum is None:
             wvl = self.wvlSpectrometer
             spectrum = self.ISpectrometer
@@ -769,16 +763,14 @@ class TraceHandler:
         The first medium (material1) should be non-absorptive. As usual the resulting waveform is stored in the TraceHandler object, replacing the previous one.
 
         Refractive index files should contain 3 space-separated columns, respectively with headers: wvl n k, where wvl is the wavelength in um, n and k resp. the real and imaginary part of the refractive index.
-        ARGUMENTS:
-            material2 = the filename (without '.txt') of the refractive index data for the material after the interface (e.g. Si Al MgF2); wavelength is in um in the refractive index file
-            angle_in = the incidence angle in degrees
-
-        OPTIONAL ARGUMENTS:
-            material1 = the filename (without '.txt') of the refractive index data for the material before the interface. If None (default), vacuum is assumed
-            forward: bool = if True (default) forward reflection is computed (the result waveform is the reflection of the previously stored waveform.
+        Args:
+            material2: the filename (without '.txt') of the refractive index data for the material after the interface (e.g. Si Al MgF2); wavelength is in um in the refractive index file
+            angle_in: the incidence angle in degrees
+            material1: the filename (without '.txt') of the refractive index data for the material before the interface. If None (default), vacuum is assumed
+            forward (bool):  if True (default) forward reflection is computed (the result waveform is the reflection of the previously stored waveform.
                 if False backward reflection is computed (the previous waveform is the reflection of the result waveform)
-            s_polarized: bool = True. Reflection calculation only implemented for s-polarized light
-            path: str = path for the refractive index files. Defaults to "./RefractiveIndices/"
+            s_polarized (bool): True. Reflection calculation only implemented for s-polarized light
+            path (str): path for the refractive index files. Defaults to "./RefractiveIndices/"
             """
         if not s_polarized:
             raise ValueError('in function TraceHandler.fresnel_reflection() p_polarized is not implemented yet\n')
@@ -863,7 +855,7 @@ class TraceHandler:
 
 
     def apply_zero_phase(self):
-        """applies zero-phase to the trace; this allows, for example, to retrieve the fourier limited pulse corresponding to the same FFT spectrum of the loaded trace"""
+        """Applies zero-phase to the trace; this allows, for example, to retrieve the fourier limited pulse corresponding to the same FFT spectrum of the loaded trace"""
         tau = self.fsZeroPadding + (np.max(self.fieldTimeV)-np.min(self.fieldTimeV))/2
         self.fftFieldV = np.abs(self.fftFieldV)*np.exp(1.j*(2*np.pi*tau*self.frequencyAxis))
         self.update_trace_from_fft()
@@ -871,7 +863,7 @@ class TraceHandler:
         self.update_fft_spectrum()
 
     def time_frequency_analysis(self, sigma_time, low_lim=None, up_lim=None, low_lim_freq=None, up_lim_freq=None):
-        """performs time-frequency analysis by using scipy's short time fourier transform (fourier transform of the trace convoluted by a 'sigma_time' broad gaussian).
+        """Performs time-frequency analysis by using scipy's short time fourier transform (fourier transform of the trace convoluted by a 'sigma_time' broad gaussian).
 
         Args:
             sigma_time: sigma of the gaussian window
@@ -909,7 +901,7 @@ class TraceHandler:
 
 
     def plot_trace(self, low_lim = None, up_lim = None, normalize: bool = True):
-        """plots the field trace.
+        """Plots the field trace.
 
         Args:
             low_lim, up_lim: float = xaxis limits for plotting. Default None
@@ -932,9 +924,9 @@ class TraceHandler:
         return fig
 
     def plot_spectrum(self, low_lim = 40, up_lim = 1000, no_phase: bool = False, phase_blanking_level = 0.05):
-        """plots the trace spectrum and phase together with the spectrometer measurement [if provided].
+        """Plots the trace spectrum and phase together with the spectrometer measurement [if provided].
 
-        OPTIONAL ARGUMENTS:
+        Args:
             low_lim, up_lim (float): xaxis limits for plotting. Default: 40, 1000
             no_phase: if True, don't plot the phase. Default: False
         """
@@ -970,17 +962,20 @@ class MultiTraceHandler:
 
     ALL TIMES IN FS, ALL WAVELENGTHS IN NM, ALL FREQUENCIES IN PHz
 
-    All stored traces are accessible as TraceHandler object in the member:
-    self.traceHandlers: list of traceHandler objects
+    All stored traces are accessible as TraceHandler object in the corresponding list.
+
+    Attributes:
+        traceHandlers (list): list of traceHandler objects
+        fsZeroPadding (float): zero padding in fs for the traces (default 150 fs)
     """
     def __init__(self, filenameList=None, filenameSpectrumList=None,
                  timeList=None, fieldList=None, stdevList=None, wvlList=None, spectrumList=None, traceHandlerList=None):
-        """constructor of MultiTraceHandler.
+        """Constructor of MultiTraceHandler.
 
-        One of the following arguments must be provided:
-        - filenameList: list of filenames containing the field traces (see TraceHandler constructor)
-        - timeList AND fieldList: list of time arrays and field arrays (see TraceHandler constructor)
-        - traceHandlerList: list of TraceHandler objects
+        One of the following arguments must be provided (all arguments default to None:
+        * filenameList: list of filenames containing the field traces (see TraceHandler constructor)
+        * timeList AND fieldList: list of time arrays and field arrays (see TraceHandler constructor)
+        * traceHandlerList: list of TraceHandler objects
 
         Args:
             filenameList : list of filenames containing the field traces (see TraceHandler constructor)
@@ -993,7 +988,7 @@ class MultiTraceHandler:
             traceHandlerList : list of TraceHandler objects
             """
 
-        self.fsZeroPadding = 50
+        self.fsZeroPadding = 150
         self.traceHandlers = []
         if filenameList is not None:
             for i in range(len(filenameList)):
@@ -1025,9 +1020,9 @@ class MultiTraceHandler:
 
 
     def append_trace(self, filename=None, filename_spectrum=None, timeV=None, fieldV=None, stdevV=None, wvl=None, spectrum=None, traceHandler=None):
-        """append a new trace to the list. Usual rules apply
+        """Append a new trace to the list. Usual rules apply.
 
-        ARGUMENTS (Optional, see TraceHandler's and MultiTraceHandler's constructors):
+        Args:
             filename
             filename_spectrum
             timeV
@@ -1117,20 +1112,27 @@ class MultiTraceHandler:
             ax.set_xlim(low_lim, up_lim)
         return fig
 
-    def plot_spectra(self, low_lim=50, up_lim=1000, labels=None, offset=0.015):
-        """plots all spectra.
+    def plot_spectra(self, low_lim=50, up_lim=1000, labels=None, offset=0.015, logscale: bool=False):
+        """Plot all spectra.
 
-        ARGUMENTS (Optional, See plot_traces() docs):
-            low_lim
-            up_lim
-            labels
-            offset
+        Args:
+            low_lim: lower limit wavelength (nm). Default: 50 nm
+            up_lim: upper limit wavelength (nm). Default: 1000 nm
+            labels: label list for the plot legend. Labels should be in the same order as the stored traceHandler objects
+            offset: artificial offset between two spectra for display purposes. Default: 0.015
+            logscale: (bool); whether to plot in a logscale
         """
         fig, ax = plt.subplots()
         for i in range(len(self.traceHandlers)):
             self.traceHandlers[i].normalize_fft_spectrum()
             wvl, spctr = self.traceHandlers[i].get_spectrum_trace()
-            ax.plot(wvl, i*offset + spctr)
+            if logscale:
+                ax.plot(wvl, (offset**i)*spctr)
+                ylow = np.mean(spctr[(wvl<up_lim)&(wvl>low_lim)])/(offset**3)
+                yup = np.mean(spctr[(wvl<up_lim)&(wvl>low_lim)])*(offset**(len(self.traceHandlers)))
+                ax.set_ylim(ylow, yup)
+            else:
+                ax.plot(wvl, i*offset + spctr)
         ax.set_xlabel('Wavelength (nm)')
         ax.set_ylabel('Intensity (Arb. unit)')
         if labels is not None:

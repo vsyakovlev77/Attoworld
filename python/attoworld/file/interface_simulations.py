@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.signal
 import h5py
+import matplotlib.pyplot as plt
 
 e = 1.602176462e-19
 hbar = 1.05457159682e-34
@@ -46,49 +47,95 @@ class LunaResult:
     """Loads and handles the Luna simulation result.
 
     The result must be in the HDF5 format using the saving option in the Luna.Interface.prop_capillary() function [filepath="..."].
-    As opposed to most of the analysis routines here, units are in SI!"""
+    As opposed to most of the analysis routines here, units are in SI!
+
+    Attributes:
+        z: position along the fiber (for the field data)
+        fieldFT: complex FFT of the field (positive freq axis); shape: (n_z, n_modes, n_freq) [or (n_z, n_freq) after mode selection/averaging]
+        omega: angular frequency axis for the FFT field; shape: (n_z, n_modes, n_freq) [or (n_z, n_freq) after mode selection/averaging]
+
+        stats_z: position along the fiber (for stats data)
+        stats_density: particle density along the fiber (m^-3)
+        stats_electrondensity: electron density along the fiber (m^-3)
+        stats_pressure: gas pressure profile along the fiber (bar)
+        stats_energy: pulse energy along the fiber (J)
+        stats_peakpower: peak power of the pulse along the fiber (W)
+        stats_peakintensity: peak intensity of the pulse along the fiber
+        stats_peak_ionization_rate: peak ionization rate along the fiber
+        """
     def __init__(self, filename):
+        """Constructor of class LunaResult.
+
+        Args:
+            filename: saved result, file path
+            """
+
         self.filename = filename
         self.fieldFT = None
         self.omega = None
-        self.stats = None
         self.z = None
-        self.grid = None
+
+        self.stats_z = None
+        self.stats_energy = None
+        self.stats_electrondensity = None
+        self.stats_density = None
+        self.stats_pressure = None
+        self.stats_peakpower = None
+        self.stats_peakintensity = None
+        self.stats_zdw = None
+        self.stats_peak_ionization_rate = None
+
         self.open_Luna_result(filename)
 
     def open_Luna_result(self, filename):
         """Opens the Luna result file and loads the data"""
-        with h5py.File(filename, 'r') as f:
-            data = f
+        with h5py.File(filename, 'r') as data:
+
+            # FIELD DATA
             self.fieldFT = np.array(data['Eω'])
-            self.grid = data['grid']
-            self.omega = np.array(self.grid['ω'])
+            self.omega = np.array(data['grid']['ω'])
             self.z = np.array(data['z'])
-            self.stats = data['stats']
+
+            # STATS
+            self.stats_z = np.array(data['stats']['z'])
+            self.stats_energy = np.array(data['stats']['energy'])
+            self.stats_electrondensity = np.array(data['stats']['electrondensity'])
+            self.stats_density = np.array(data['stats']['density'])
+            self.stats_pressure = np.array(data['stats']['pressure'])
+            self.stats_peakpower = np.array(data['stats']['peakpower'])
+            self.stats_peakintensity = np.array(data['stats']['peakintensity'])
+            self.stats_zdw = np.array(data['stats']['zdw'])
+            self.stats_peak_ionization_rate = np.array(data['stats']['peak_ionisation_rate'])
 
     def average_modes(self):
         """Averages the propagation modes in the Luna result file"""
         if len(self.fieldFT.shape) == 3:
             self.fieldFT = np.mean(self.fieldFT, axis=1)
+            self.stats_zdw = None
+            self.stats_peakpower = None
+            self.stats_energy = np.sum(self.stats_energy, axis=1)
 
     def select_mode(self, mode: int):
         if len(self.fieldFT.shape) < 3:
             print("WARNING: No mode to select")
-        elif mode > self.fieldFT.shape[1] or mode < 0:
+        elif mode >= self.fieldFT.shape[1] or mode < 0:
             print("WARNING: mode ", mode, " is out of range")
         else:
             self.fieldFT = self.fieldFT[:, mode, :]
+            self.stats_zdw = self.stats_zdw[:, mode]
+            self.stats_peakpower = self.stats_peakpower[:, mode]
+            self.stats_energy = self.stats_energy[:, mode]
 
     def get_time_field(self, position=None):
-        """Get the COMPLEX electric field in time from the Luna result file
+        """Get the electric field in time from the Luna result file. If no mode was previously selected, the method computes the average of all modes.
+        Therefore, after calling get_time_field(), mode selection is not possible any more.
 
         Args:
             position (float): position along the fiber in m. If None, the end of the fiber is used.
 
         Returns:
             timeV (numpy.ndarray): time axis in seconds
-            fieldV (numpy.ndarray): electric field in V/m ( COMPLEX!! -> remember to take the real part to get the field or the absolute value to get the envelope
-                if you take the imaginary part, I bear no responsibility for that)
+            fieldV (numpy.ndarray): electric field in V/m
         """
         self.average_modes()
         if position is None:
@@ -100,7 +147,7 @@ class LunaResult:
         fieldFFT = np.concatenate((self.fieldFT[index, :], np.conjugate(self.fieldFT[index, :][::-1])*0))
         freq = np.concatenate((self.omega, -self.omega[::-1])) / 2 / np.pi
         timeV, fieldV = inverse_fourier_transform(freq, fieldFFT)
-        return timeV, fieldV
+        return timeV, np.real(fieldV)
 
     def get_wavelength_spectrum(self, position=None):
         """Get the spectrum from the Luna result file (|FFT|^2 * (2 * pi * c / λ^2))
@@ -110,7 +157,7 @@ class LunaResult:
 
         Returns:
             wvl (numpy.ndarray): wavelength axis in m
-            wvlSpectrum (numpy.ndarray): electric field spectrum in V/m ( COMPLEX !! )
+            wvlSpectrum (numpy.ndarray): electric field spectrum in V/m
         """
         self.average_modes()
         if position is None:
@@ -143,5 +190,41 @@ class LunaResult:
         phase = np.angle(self.fieldFT[index, ::-1])
         return wvl, phase
 
+    def plot_stats(self):
+        """Plots the 'stats_' attribute of the simulation stored in the present object."""
 
+        fig, axs = plt.subplots(2, 2, figsize=[7, 5])
+        axs[0,0].plot(self.stats_z, self.stats_pressure)
+        axs[0,0].set_xlabel("z (m)")
+        axs[0,0].set_ylabel("gas pressure (bar)")
+        ax2 = axs[0,0].twinx()
+        ax2.plot(self.stats_z, self.stats_density, color='r')
+        ax2.set_ylabel('gas particle density ($m^{-3}$)', color='r')
+        ax2.tick_params(axis='y', colors='r')
+        ax2.yaxis.label.set_color('r')
+        axs[0,1].plot(self.stats_z, self.stats_electrondensity)
+        axs[0,1].set_xlabel("z (m)")
+        axs[0,1].set_ylabel("electron density ($m^{-3}$)")
+        ax2 = axs[0,1].twinx()
+        if len(self.stats_energy.shape) == 2:
+            ax2.plot(self.stats_z, np.sum(self.stats_energy, axis=1)*1e6, color='r')
+        else:
+            ax2.plot(self.stats_z, self.stats_energy*1e6, color='r')
+        ax2.set_ylabel('pulse energy ($\mu J$)', color='r')
+        ax2.tick_params(axis='y', colors='r')
+        ax2.yaxis.label.set_color('r')
+        if self.stats_peakpower is not None:
+            if len(self.stats_peakpower.shape) ==2:
+                axs[1,0].plot(self.stats_z, self.stats_peakpower[:, 0])
+                axs[1,0].set_xlabel("z (m)")
+                axs[1,0].set_ylabel("peak power (W)")
+            elif len(self.stats_peakpower.shape) ==1:
+                axs[1,0].plot(self.stats_z, self.stats_peakpower)
+                axs[1,0].set_xlabel("z (m)")
+                axs[1,0].set_ylabel("peak power (W)")
+        axs[1,1].plot(self.stats_z, self.stats_peak_ionization_rate)
+        axs[1,1].set_xlabel("z (m)")
+        axs[1,1].set_ylabel("peak ionization rate")
+        plt.tight_layout()
 
+        return fig

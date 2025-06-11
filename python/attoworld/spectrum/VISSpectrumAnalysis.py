@@ -69,9 +69,6 @@ def read_spectrum_maya(filename, remove_offsets_individually=False, nm_smearing=
             ax.plot(wvl, spectrum_i, label=f'Channel {i+1}')
 
     spectrum = np.mean(np.array(spectrum), axis=0)
-    #if eliminate_outliers_spectrum:
-    #    eliminate_outliers(spectrum, threshold=3, window_points=20)
-    #    spectrum = gaussian_filter1d(spectrum, sigma=final_nm_smearing/(wvl[1]-wvl[0]))
     ax.plot(wvl, spectrum, label='Mean spectrum')
 
     return wvl, np.maximum(np.zeros(len(spectrum)), spectrum)
@@ -289,11 +286,11 @@ class SpectrumHandler:
         """Applies a Tukey window to the spectrum (e.g. to remove noise at the edges).
 
         Tukey window is defined as:
-         - cosine-shaped window between edge1-edge1_width/2 and edge1+edge1_width/2
-         - 1 between edge1+edge1_width/2 and edge2-edge2_width/2
-         - cosine-shaped window between edge2-edge2_width/2 and edge2+edge2_width/2
-         - 0 everywhere  else
-         In this case, tukey window is computed in the wavelength domain.
+         * cosine-shaped window between edge1-edge1_width/2 and edge1+edge1_width/2
+         * 1 between edge1+edge1_width/2 and edge2-edge2_width/2
+         * cosine-shaped window between edge2-edge2_width/2 and edge2+edge2_width/2
+         * 0 everywhere else
+        In this case, tukey window is computed in the wavelength domain.
 
         Args:
             edge1, edge2 (float): Wavelength limits for the Tukey window (edge2-edge1 = FWHM, in nm)
@@ -385,8 +382,8 @@ class SpectrumHandler:
         """Computes the calibration factor.
 
          It assumes that in the SpectrumHandler object:
-         - the measured spectrum of the calibration lamp is loaded as main spectrum
-         - the true tabulated spectrum of the calibration lamp is loaded as self.calibration_lamp_spectrum [via load_calibration_lamp_data()]
+         * the measured spectrum of the calibration lamp is loaded as main spectrum
+         * the true tabulated spectrum of the calibration lamp is loaded as self.calibration_lamp_spectrum [via load_calibration_lamp_data()]
 
          Args:
             transmission_additional_optics: list of SpectrumHandler objects = list of transmission spectra of additional optics to be taken into account when computing the calibration factor.

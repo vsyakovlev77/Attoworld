@@ -6,11 +6,11 @@ from ..plot import label_letter
 class FrogResult:
     """Loads the FROG reconstructed spectra and traces together with the measured spectrogram
 
-    files are in the format:
-    filename.A.dat: measured spectrogram
-    filename.Arecon.dat: reconstructed spectrogram
-    filename.Ek.dat: field envelope, phase
-    filename.Speck.dat: reconstructed spectrum and phase
+    Files are in the format (all of them need to be available):
+    * filename.A.dat: measured spectrogram
+    * filename.Arecon.dat: reconstructed spectrogram
+    * filename.Ek.dat: field envelope, phase
+    * filename.Speck.dat: reconstructed spectrum and phase
 
     Warning: the class stores the data as in the files, please use methods "get_*()" to access the data correctly.
     """

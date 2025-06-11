@@ -6,16 +6,15 @@ import scipy.signal
 import scipy.constants as constants
 
 def get_fwhm(t, x, no_envelope: bool = False):
-    """
-    This function calculates the full-width-at-half-maximum:
+    """Calculates the full-width-at-half-maximum:
     FWHM is the full-width of the intensity profile I(t) = |A(t)|^2 at half-maximum, where A(t) is the envelope of the signal.
 
     Args:
-    x: signal in time domain vector
-    t: time vector
+        x: signal in time domain vector
+        t: time vector
 
-    RETURNS:
-    fwhm: fwhm_val[0]
+    Returns:
+        fwhm: fwhm_val[0]
 
     if no_envelope == True it computes the FWHM without taking the square modulus and without computing envelope (assuming input is intensity envelope already)
     """
@@ -85,6 +84,12 @@ def fitgaussian(data):
     return p
 
 def plot_crosssect(data, fitfunct=None):
+    """Plots the x- and y- cross-sections of a 2D array (image). The two cross-sections contain the maximum-valued pixel.
+
+    Args:
+        data: 2D array
+        fitfunct: function (callable) object describing the image profile. Defaults to None
+    """
     maxindex = np.unravel_index(np.argmax(data), data.shape)
     y, x = maxindex[0], maxindex[1]
     Y, X = np.indices(data.shape)
@@ -96,7 +101,7 @@ def plot_crosssect(data, fitfunct=None):
     ax[1].plot(Y[:,x], data[:,x])
     if fitfunct is not None:
         ax[1].plot(Y[:,x], fitfunct(Y[:,x], Y[:,x]*0. + x))
-    fig.show()
+    return fig
 
 def cut_tail(data, radius, pixelsize=1., center=None):
     radius=radius/pixelsize
