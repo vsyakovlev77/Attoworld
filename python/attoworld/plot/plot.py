@@ -3,6 +3,7 @@ import io
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from cycler import cycler
+from dataclasses import dataclass
 
 def showmo():
     """
@@ -98,3 +99,20 @@ def label_letter(
                 fontweight = 'bold'
 
         axis.text(x_position, y_position, letter_string, ha='center', transform=axis.transAxes, fontweight=fontweight)
+
+@dataclass
+class Char:
+    """
+    Contains useful characters and strings for plot labels.
+
+    Examples:
+        >>> plt.xlabel(aw.plot.Char.wavelength_micron)
+        >>> plt.ylabel(f'{aw.plot.Char.theta} ({aw.plot.Char.degrees}))
+    """
+    mu: str = '\u03bc'
+    phi: str = '\u03a6'
+    lam: str = '\u03bb'
+    theta: str = '\u03b8'
+    micron: str = '\u03bcm'
+    degrees: str = '\u00B0'
+    wavelength_micron: str = 'Wavelength (\u03bcm)'

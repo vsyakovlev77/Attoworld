@@ -1,6 +1,5 @@
 from copy import deepcopy
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import scipy.optimize
 import scipy.special
@@ -567,7 +566,8 @@ class TraceHandler:
         convention: field [V/Å], time [fs], fluence [J/cm²]
         F = c\*eps_0\*integral(E^2)dt
 
-        returns:
+
+        Returns:
             fluence: float
         """
         F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
@@ -621,9 +621,8 @@ class TraceHandler:
     def get_zero_delay(self):
         """Get the time value corresponding to the envelope peak.
 
-        Attention: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
-
         Returns:
+
             zero_delay: float
         """
         # careful: the time grid should be fine enough to resolve the maximum of the envelope
@@ -636,9 +635,8 @@ class TraceHandler:
     def get_FWHM(self):
         """get the FWHM of the trace.
 
-        Attention: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
 
-        RETURNS
+        Returns:
             FWHM: float
         """
         t, en = self.get_envelope()
@@ -719,6 +717,7 @@ class TraceHandler:
             spectrum: spectral intensity array. If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
             CEP_shift: a possible artificial phase shift IN UNITS OF PI! (default = 0)
             stripZeroPadding (bool): whether to eliminate the zero padding (zeros appended to the trace). Default is True"""
+
         if wvl is None or spectrum is None:
             wvl = self.wvlSpectrometer
             spectrum = self.ISpectrometer
@@ -768,6 +767,7 @@ class TraceHandler:
             angle_in: the incidence angle in degrees
             material1: the filename (without '.txt') of the refractive index data for the material before the interface. If None (default), vacuum is assumed
             forward (bool):  if True (default) forward reflection is computed (the result waveform is the reflection of the previously stored waveform.
+
                 if False backward reflection is computed (the previous waveform is the reflection of the result waveform)
             s_polarized (bool): True. Reflection calculation only implemented for s-polarized light
             path (str): path for the refractive index files. Defaults to "./RefractiveIndices/"
@@ -833,11 +833,6 @@ class TraceHandler:
         # interpolate the n1 and n2 to the frequency axis of the fft
         n1Interp = np.interp(self.frequencyAxis, freq1, n1)
         n2Interp = np.interp(self.frequencyAxis, freq2, n2)
-
-        # calculate the angle of refraction using snell's law (currently not used)
-        angle_out = np.where(np.sin(angle_in*np.pi/180) * np.real(n1Interp) / np.real(n2Interp) <=1,
-            np.arcsin(np.sin(angle_in*np.pi/180) * np.real(n1Interp) / np.real(n2Interp)) * 180/np.pi,
-            np.nan)
 
         # calculate the fresnel reflection coefficients using only the angle of incidence (NOT SURE THIS WORKS WHEN THE FIRST MEDIUM IS LOSSY)
         r = ((n1Interp * np.cos(angle_in*np.pi/180) - n2Interp * np.sqrt(1-(n1Interp/n2Interp*np.sin(angle_in*np.pi/180))**2)) /
@@ -1114,13 +1109,12 @@ class MultiTraceHandler:
 
     def plot_spectra(self, low_lim=50, up_lim=1000, labels=None, offset=0.015, logscale: bool=False):
         """Plot all spectra.
-
-        Args:
             low_lim: lower limit wavelength (nm). Default: 50 nm
             up_lim: upper limit wavelength (nm). Default: 1000 nm
             labels: label list for the plot legend. Labels should be in the same order as the stored traceHandler objects
             offset: artificial offset between two spectra for display purposes. Default: 0.015
             logscale: (bool); whether to plot in a logscale
+
         """
         fig, ax = plt.subplots()
         for i in range(len(self.traceHandlers)):

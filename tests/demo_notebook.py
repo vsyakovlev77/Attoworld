@@ -12,7 +12,7 @@ def _():
     import matplotlib.pyplot as plt
     import scipy
     import timeit
-    aw.plot.set_style('light', font_size=14)
+    aw.plot.set_style('nick_dark', font_size=14)
     return aw, mo, np, plt, scipy, timeit
 
 
@@ -104,8 +104,8 @@ def _(aw, np, scipy, timeit):
         x2 = np.linspace(0.1,15.99,2222)
         y = np.sin(x**2/beta)
         y2 = np.sin(x2**2/beta)
-        print(f"aw.numeric.interpolate: {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=10000)} seconds")
-        print(f"scipy.interpolate.CubicSpline: {timeit.timeit(lambda: scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2), number=10000)} seconds")
+        print(f"aw.numeric.interpolate: {timeit.timeit(lambda: aw.numeric.interpolate(x2, x, y, neighbors=3), number=1000)} seconds")
+        print(f"scipy.interpolate.CubicSpline: {timeit.timeit(lambda: scipy.interpolate.CubicSpline(x,y, extrapolate=False)(x2), number=1000)} seconds")
 
     benchmark_interpolations()
     return
@@ -150,6 +150,28 @@ def _(N_pts_range, aw, np, plt):
 
 
     plot_fwhm_convergence()
+    aw.plot.showmo()
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## Labels
+    The attoworld.plot.Char class contains useful symbols for putting correct labels on things.
+    """
+    )
+    return
+
+
+@app.cell
+def _(aw, np, plt):
+    lam = np.linspace(100.0,1000.0,1024)
+    signal = np.random.rand(lam.shape[0])
+    plt.plot(lam,signal)
+    plt.xlabel(aw.plot.Char.wavelength_micron)
+    plt.ylabel("Intensity (Arb. unit)")
     aw.plot.showmo()
     return
 
