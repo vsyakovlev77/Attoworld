@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from cycler import cycler
 from dataclasses import dataclass
-from doctest import Example
-
 
 def showmo():
     """

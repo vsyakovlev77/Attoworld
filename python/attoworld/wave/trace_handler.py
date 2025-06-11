@@ -1,6 +1,5 @@
 from copy import deepcopy
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import scipy.optimize
 import scipy.special
@@ -301,7 +300,7 @@ class TraceHandler:
 
         The spectrum does not correspond to the fourier transform of the trace, but to the spectrometer data that you would like to compare with the loaded trace
 
-        ARGUMENTS:
+        Args:
             filename
         """
         if fname is not None:
@@ -314,7 +313,7 @@ class TraceHandler:
     def update_fft(self, zero_pad_field = True):
         """updates the fft of the trace from the time domain data.
 
-        OPTIONAL ARGUMENTS:
+        Args:
             zero_pad_field: bool; if true (default) add zeros before and after the trace before computing fft (for a smoother spectrum)
                 The length of appended zeros is defined by self.fsZeroPadding.
         """
@@ -499,10 +498,8 @@ class TraceHandler:
     def save_trace_to_file(self, filename, low_lim=None, up_lim=None):
         """saves the trace to file
 
-        ARGUMENTS:
+        Args:
             filename
-
-        OPTIONAL ARGUMENTS:
             low_lim, up_lim: only save the trace between low_lim and up_lim (default: None, None)
         """
         if low_lim is not None and up_lim is not None:
@@ -574,7 +571,7 @@ class TraceHandler:
         convention: field [V/Å], time [fs], fluence [J/cm²]
         F = c*epsilon_0*integral(E^2)dt
 
-        RETURNS:
+        Returns:
             fluence: float
         """
         F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
@@ -603,7 +600,7 @@ class TraceHandler:
     def get_envelope(self):
         """get the envelope of the trace.
 
-        RETURNS:
+        Returns:
             time array (fs)
             envelope array
             """
@@ -616,7 +613,7 @@ class TraceHandler:
 
         If complexFieldV is already computed and stored, no re-calculation occurs
 
-        RETURNS:
+        Returns:
             time array (fs)
             instantaneous phase array (fs)
         """
@@ -627,9 +624,7 @@ class TraceHandler:
     def get_zero_delay(self):
         """get the time value corresponding to the envelope peak.
 
-        ATTENTION: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
-
-        RETURNS
+        Returns
             zero_delay: float
         """
         # careful: the time grid should be fine enough to resolve the maximum of the envelope
@@ -642,9 +637,7 @@ class TraceHandler:
     def get_FWHM(self):
         """get the FWHM of the trace.
 
-        ATTENTION: the time array of the trace envelope should be fine enough to start with in order to resolve well the FWHM (please check it)
-
-        RETURNS
+        Returns:
             FWHM: float
         """
         t, en = self.get_envelope()
@@ -658,7 +651,7 @@ class TraceHandler:
         and it is reaches zero at lowWavelengthEdge-lowEdgeWidth/2  and  upWavelengthEdge+highEdgeWidth/2.
         Notice that the edges are only cosine-shaped in the frequency domain. In the wavelength domain upWavelengthEdge - lowWavelengthEdge does not coincide with the FWHM of the tukey function
 
-        ARGUMENTS:
+        Args:
             lowWavelengthEdge: float (nm)
             upWavelengthEdge: float (nm)
             lowEdgeWidth: float (nm)
@@ -684,7 +677,7 @@ class TraceHandler:
     def apply_transmission(self, wavelengths, f):
         """applies a spectral transmission function to the trace (e.g. spectral filter).
 
-        ARGUMENTS:
+        Args:
             wavelengths: ndarray = wavelength array (nm)
             f: ndarray = transmission function f(λ)
         """
@@ -720,7 +713,7 @@ class TraceHandler:
         """applies a spectrum to the phase of the trace. This means that a new trace is computed and stored in the TraceHandler object (replacing the existing one);
         the new trace has spectral intensity equal to the applied spectrum and spectral phase equal to the phase of the existing trace.
 
-        ARGUMENTS (Optional):
+        Args:
             wvl = wavelength array (nm). If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
             spectrum = spectral intensity array. If None (default) the comparison spectrum stored in the class (self.wvlSpectrometer and self.ISpectrometer) is applied.
             CEP_shift = a possible artificial phase shift IN UNITS OF PI! (default = 0)
@@ -769,11 +762,9 @@ class TraceHandler:
         The first medium (material1) should be non-absorptive. As usual the resulting waveform is stored in the TraceHandler object, replacing the previous one.
 
         Refractive index files should contain 3 space-separated columns, respectively with headers: wvl n k, where wvl is the wavelength in um, n and k resp. the real and imaginary part of the refractive index.
-        ARGUMENTS:
+        Args:
             material2 = the filename (without '.txt') of the refractive index data for the material after the interface (e.g. Si Al MgF2); wavelength is in um in the refractive index file
             angle_in = the incidence angle in degrees
-
-        OPTIONAL ARGUMENTS:
             material1 = the filename (without '.txt') of the refractive index data for the material before the interface. If None (default), vacuum is assumed
             forward: bool = if True (default) forward reflection is computed (the result waveform is the reflection of the previously stored waveform.
                 if False backward reflection is computed (the previous waveform is the reflection of the result waveform)
@@ -841,11 +832,6 @@ class TraceHandler:
         # interpolate the n1 and n2 to the frequency axis of the fft
         n1Interp = np.interp(self.frequencyAxis, freq1, n1)
         n2Interp = np.interp(self.frequencyAxis, freq2, n2)
-
-        # calculate the angle of refraction using snell's law (currently not used)
-        angle_out = np.where(np.sin(angle_in*np.pi/180) * np.real(n1Interp) / np.real(n2Interp) <=1,
-            np.arcsin(np.sin(angle_in*np.pi/180) * np.real(n1Interp) / np.real(n2Interp)) * 180/np.pi,
-            np.nan)
 
         # calculate the fresnel reflection coefficients using only the angle of incidence (NOT SURE THIS WORKS WHEN THE FIRST MEDIUM IS LOSSY)
         r = ((n1Interp * np.cos(angle_in*np.pi/180) - n2Interp * np.sqrt(1-(n1Interp/n2Interp*np.sin(angle_in*np.pi/180))**2)) /
@@ -934,7 +920,7 @@ class TraceHandler:
     def plot_spectrum(self, low_lim = 40, up_lim = 1000, no_phase: bool = False, phase_blanking_level = 0.05):
         """plots the trace spectrum and phase together with the spectrometer measurement [if provided].
 
-        OPTIONAL ARGUMENTS:
+        Args:
             low_lim, up_lim (float): xaxis limits for plotting. Default: 40, 1000
             no_phase: if True, don't plot the phase. Default: False
         """
@@ -1027,7 +1013,7 @@ class MultiTraceHandler:
     def append_trace(self, filename=None, filename_spectrum=None, timeV=None, fieldV=None, stdevV=None, wvl=None, spectrum=None, traceHandler=None):
         """append a new trace to the list. Usual rules apply
 
-        ARGUMENTS (Optional, see TraceHandler's and MultiTraceHandler's constructors):
+        Args:
             filename
             filename_spectrum
             timeV
@@ -1121,10 +1107,10 @@ class MultiTraceHandler:
         """plots all spectra.
 
         ARGUMENTS (Optional, See plot_traces() docs):
-            low_lim
-            up_lim
-            labels
-            offset
+            low_lim:
+            up_lim:
+            labels:
+            offset:
         """
         fig, ax = plt.subplots()
         for i in range(len(self.traceHandlers)):
