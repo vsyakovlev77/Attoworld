@@ -155,6 +155,16 @@ def _(N_pts_range, aw, np, plt):
 
 
 @app.cell
+def _(aw, np, plt):
+    lam = np.linspace(100.0,1000.0,1024)
+    signal = np.random.rand(lam.shape[0])
+    plt.plot(lam,signal)
+    plt.xlabel(aw.plot.Char.wavelength_micron)
+    aw.plot.showmo()
+    return
+
+
+@app.cell
 def _():
     return
 
