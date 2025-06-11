@@ -5,24 +5,9 @@ import matplotlib.pyplot as plt
 import scipy.optimize
 import scipy.special
 import scipy.signal
+from scipy import constants
 import pandas
-import math
 from ..numeric import fwhm, find_maximum_location
-
-e = 1.602176462e-19
-hbar = 1.05457159682e-34
-m = 9.1093818872e-31
-eps0 = 8.854187817e-12
-kB = 1.380650324e-23
-c = 299792458
-
-#matplotlib.rcParams['figure.figsize'] = [30, 12]
-figureSize = [30,12]
-tickSize = 48
-fontSize = 55
-lineWidth = 6
-legendFontSize = 41
-axisLineWidth = 3
 
 def check_equal_length(*arg):
     n = len(arg[0])
@@ -277,8 +262,8 @@ class TraceHandler:
                 raise ValueError('in function TraceHandler.load_from_spectral_data() wavelength array is not monotonous')
 
         # frequency spectrum (monotonically increasing)
-        freq = c / wvl_FFT_trace[::-1] * 1e-6
-        spectrum_freq = spectrum_FFT_trace[::-1] / (c/wvl_FFT_trace[::-1]**2 *1e-6)
+        freq = constants.speed_of_light / wvl_FFT_trace[::-1] * 1e-6
+        spectrum_freq = spectrum_FFT_trace[::-1] / (constants.speed_of_light/wvl_FFT_trace[::-1]**2 *1e-6)
         phase_FFT_trace = phase_FFT_trace[::-1]
 
         # create proper freq axis for the fourier transform
@@ -349,8 +334,8 @@ class TraceHandler:
 
         The function internally calls update_spectral_phase() as well.
         """
-        self.wvlAxis = c/self.frequencyAxis[self.frequencyAxis > 0]*1.e-6
-        self.fftSpectrum = np.abs(self.fftFieldV[self.frequencyAxis > 0])**2 * c/self.wvlAxis**2
+        self.wvlAxis = constants.speed_of_light/self.frequencyAxis[self.frequencyAxis > 0]*1.e-6
+        self.fftSpectrum = np.abs(self.fftFieldV[self.frequencyAxis > 0])**2 * constants.speed_of_light/self.wvlAxis**2
         self.compute_complex_field()
         self.update_spectral_phase()
         self.normalize_fft_spectrum()
@@ -461,7 +446,7 @@ class TraceHandler:
             raise ValueError('in function TraceHandler.fourier_interpolation() frequency axis or fft field is not defined')
         # extend the frequency axis by a factor ntimes_finer
         df = self.frequencyAxis[1] - self.frequencyAxis[0]
-        i_last_pos = math.ceil(len(self.frequencyAxis) / 2) - 1
+        i_last_pos = int(np.ceil(len(self.frequencyAxis) / 2) - 1)
         if self.frequencyAxis[i_last_pos] < 0 or self.frequencyAxis[i_last_pos + 1] > 0:
             print(self.frequencyAxis[0:i_last_pos + 1])
             print(self.frequencyAxis[i_last_pos + 1:])
@@ -592,7 +577,7 @@ class TraceHandler:
         RETURNS:
             fluence: float
         """
-        F = c*eps0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
+        F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
         return F
 
     def set_fluence(self, fluence):
@@ -600,7 +585,7 @@ class TraceHandler:
 
         convention: field [V/Å], time [fs], fluence [J/cm²]
         F = c*epsilon_0*integral(E^2)dt"""
-        F = c*eps0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
+        F = constants.speed_of_light*constants.epsilon_0 * np.trapz(self.fieldV**2, self.fieldTimeV)* 1e1
         self.fieldV *= np.sqrt(fluence/F)
         self.update_fft()
         self.update_fft_spectrum()
@@ -679,14 +664,14 @@ class TraceHandler:
             lowEdgeWidth: float (nm)
             highEdgeWidth: float (nm)
         """
-        upFreqEdge = c / (lowWavelengthEdge - lowEdgeWidth / 2) /2 * 1e-6 + c / (
+        upFreqEdge = constants.speed_of_light / (lowWavelengthEdge - lowEdgeWidth / 2) /2 * 1e-6 + constants.speed_of_light / (
                     lowWavelengthEdge + lowEdgeWidth / 2) /2 * 1e-6
-        lowFreqEdge = c / (upWavelengthEdge - highEdgeWidth / 2) /2 * 1e-6 + c / (
+        lowFreqEdge = constants.speed_of_light / (upWavelengthEdge - highEdgeWidth / 2) /2 * 1e-6 + constants.speed_of_light / (
                     upWavelengthEdge + highEdgeWidth / 2) /2 * 1e-6
 
-        upFreqEdgeWidth = c / (lowWavelengthEdge - lowEdgeWidth / 2) * 1e-6 - c / (
+        upFreqEdgeWidth = constants.speed_of_light / (lowWavelengthEdge - lowEdgeWidth / 2) * 1e-6 - constants.speed_of_light / (
                     lowWavelengthEdge + lowEdgeWidth / 2) * 1e-6
-        lowFreqEdgeWidth = c / (upWavelengthEdge - highEdgeWidth / 2) * 1e-6 - c / (
+        lowFreqEdgeWidth = constants.speed_of_light / (upWavelengthEdge - highEdgeWidth / 2) * 1e-6 - constants.speed_of_light / (
                     upWavelengthEdge + highEdgeWidth / 2) * 1e-6
 
         window = asymmetric_tukey_window(np.abs(self.frequencyAxis), lowFreqEdge, upFreqEdge, lowFreqEdgeWidth,
@@ -709,7 +694,7 @@ class TraceHandler:
                 f = f[::-1]
             else:
                 raise ValueError('in function TraceHandler.apply_transmission() wavelength array is not monotonous')
-        freq = c / wavelengths[::-1] * 1e-6
+        freq = constants.speed_of_light / wavelengths[::-1] * 1e-6
         spectrum_freq = f[::-1]
 
         # fill with zeros
@@ -752,8 +737,8 @@ class TraceHandler:
                 raise ValueError('in function TraceHandler.apply_spectrum() wavelength array is not monotonous')
 
         # frequency spectrum (monotonically increasing)
-        freq = c / wvl[::-1] *1e-6
-        spectrum_freq = spectrum[::-1] / (c/wvl[::-1]**2 *1e-6)
+        freq = constants.speed_of_light / wvl[::-1] *1e-6
+        spectrum_freq = spectrum[::-1] / (constants.speed_of_light/wvl[::-1]**2 *1e-6)
         spectrum_freq = np.maximum(spectrum_freq, np.zeros(len(spectrum_freq)))
 
         # fill with zeros
@@ -766,9 +751,6 @@ class TraceHandler:
         # add negative frequencies
         freq = np.concatenate((-freq[::-1], freq))
         spectrum_freq = np.concatenate((spectrum_freq[::-1], spectrum_freq))
-        #plt.plot(freq, spectrum_freq)
-        #plt.xlim(-3, 3)
-        #plt.show()
 
         # interpolate the spectrum to the frequency axis of the fft
         spectrum_interp = np.interp(self.frequencyAxis, freq, spectrum_freq)
@@ -828,8 +810,8 @@ class TraceHandler:
                 raise ValueError('in function TraceHandler.fresnel_reflection() wavelength array is not monotonous')
 
         # frequency spectrum (monotonically increasing)
-        freq1 = c / wvl1[::-1] * 1e-6
-        freq2 = c / wvl2[::-1] * 1e-6
+        freq1 = constants.speed_of_light / wvl1[::-1] * 1e-6
+        freq2 = constants.speed_of_light / wvl2[::-1] * 1e-6
         n1 = n1[::-1]
         n2 = n2[::-1]
 
@@ -902,7 +884,7 @@ class TraceHandler:
         TFA = scipy.signal.ShortTimeFFT(w, hop=1, fs=1. / dt, mfft=int(sigma_time / dt * 24), scale_to='magnitude')
         TFData = TFA.stft(self.fieldV)
 
-        fig, ax = plt.subplots(figsize=figureSize)
+        fig, ax = plt.subplots()
         t_lo, t_hi, f_lo, f_hi = TFA.extent(self.fieldV.size)  # time and freq range of plot
         if low_lim is None:
             low_lim = t_lo+self.fieldTimeV[0]
@@ -912,21 +894,17 @@ class TraceHandler:
             low_lim_freq = 0
         if up_lim_freq is None:
             up_lim_freq = 3.0
-        ax.set_title('time-frequency analysis', fontsize=fontSize)
+
         ax.set( xlim=(low_lim, up_lim),
                 ylim=(low_lim_freq, up_lim_freq))
-        ax.set_xlabel('time (fs)', fontsize=fontSize)
-        ax.set_ylabel('Frequency (PHz)', fontsize=fontSize)
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Frequency (PHz)')
         im1 = ax.imshow(abs(TFData)/np.max(abs(TFData)), origin='lower', aspect='auto',
                          extent=(t_lo+self.fieldTimeV[0], t_hi+self.fieldTimeV[0], f_lo, f_hi), cmap='viridis')
         cbar = fig.colorbar(im1)
-        ticklabs = cbar.ax.get_yticklabels()
-        cbar.ax.set_yticklabels(ticklabs, fontsize=tickSize)
-        cbar.ax.set_ylabel("Magnitude of the field (a.u.)", fontsize=fontSize)
-        plt.yticks(fontsize=tickSize)
-        plt.xticks(fontsize=tickSize)
+
+        cbar.ax.set_ylabel("Magnitude of the field (Arb. unit)")
         fig.tight_layout()
-        plt.show()
         return TFData
 
 
@@ -937,51 +915,54 @@ class TraceHandler:
             low_lim, up_lim: float = xaxis limits for plotting. Default None
             normalize: bool = if True (default) normalize the peak of the trace to 1
         """
-        fig, ax = plt.subplots(figsize=figureSize)
+        fig, ax = plt.subplots()
         if normalize:
             norm_plot = self.normalization_trace
         else:
             norm_plot = 1
-        ax.plot(self.fieldTimeV, self.fieldV/norm_plot, label='Field trace', color='b', linewidth=lineWidth)
+        main_line = ax.plot(self.fieldTimeV, self.fieldV/norm_plot, label='Field trace')
         if self.fieldStdevV is not None:
             ax.fill_between(self.fieldTimeV, (self.fieldV - self.fieldStdevV)/norm_plot,
-                            (self.fieldV + self.fieldStdevV)/norm_plot, color='b', alpha=0.2)
-        ax.set_xlabel('Time (fs)', fontsize=fontSize)
-        ax.set_ylabel('Field (a.u.)', fontsize=fontSize)
-        ax.set_title('Field trace', fontsize=fontSize)
-        plt.xticks(fontsize=tickSize)
-        plt.yticks(fontsize=tickSize)
+                            (self.fieldV + self.fieldStdevV)/norm_plot, color=main_line[0].get_color(), alpha=0.3)
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Field (Arb. unit)')
+
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim, up_lim)
-        plt.show()
+        return fig
 
-    def plot_spectrum(self, low_lim = 40, up_lim = 1000, no_phase: bool = False):
+    def plot_spectrum(self, low_lim = 40, up_lim = 1000, no_phase: bool = False, phase_blanking_level = 0.05):
         """plots the trace spectrum and phase together with the spectrometer measurement [if provided].
 
         OPTIONAL ARGUMENTS:
             low_lim, up_lim (float): xaxis limits for plotting. Default: 40, 1000
             no_phase: if True, don't plot the phase. Default: False
         """
-        fig, ax = plt.subplots(figsize=figureSize)
+        fig, ax = plt.subplots()
+
         if not no_phase:
             ax2 = ax.twinx()
-        ax.plot(self.wvlAxis[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)], self.fftSpectrum[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)],
-                label='FFT', color='b', linewidth=lineWidth)
+        lines = []
+        min_intensity = phase_blanking_level * np.max(self.fftSpectrum)
+        lines += ax.plot(self.wvlAxis[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)], self.fftSpectrum[(self.wvlAxis>low_lim) & (self.wvlAxis<up_lim)],
+                label='Fourier transform')
         if not no_phase:
-            ax2.plot(self.wvlAxis[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)], self.fftphase[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)],
-                     color='g', linewidth=lineWidth, label='Phase')
+            ax2.plot([],[])
+            if self.wvlSpectrometer is not None:
+                ax2.plot([],[])
+            lines += ax2.plot(self.wvlAxis[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)&(self.fftSpectrum>min_intensity)], self.fftphase[(self.wvlAxis>low_lim)&(self.wvlAxis<up_lim)&(self.fftSpectrum>min_intensity)],'--',
+                     label='Phase')
         if self.wvlSpectrometer is not None:
-            ax.plot(self.wvlSpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)], self.ISpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)],
-                    label='Spectrometer', color='r', linewidth=lineWidth)
-        ax.set_xlabel('Wavelength (nm)', fontsize=fontSize)
-        ax.set_ylabel('Intensity (a.u.)', fontsize=fontSize)
-        ax.set_title('Fourier Transform of the field trace', fontsize=fontSize)
-        ax.tick_params(axis='both', labelsize=tickSize)
+            lines += ax.plot(self.wvlSpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)], self.ISpectrometer[(self.wvlSpectrometer>low_lim)&(self.wvlSpectrometer<up_lim)],
+                    label='Spectrometer')
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Intensity (Arb. unit)')
+        ax.tick_params(axis='both')
         if not no_phase:
-            ax2.set_ylabel('Phase (rad)', color='g', fontsize=fontSize)
-            ax2.tick_params(axis='y', colors='g', labelsize=tickSize)
-            ax2.yaxis.label.set_color('g')
-        plt.show()
+            ax2.set_ylabel('Phase (rad)')
+            ax2.tick_params(axis='y')
+        ax.legend(lines, [l.get_label() for l in lines])
+        return fig
 
 
 class MultiTraceHandler:
@@ -1105,39 +1086,36 @@ class MultiTraceHandler:
             errorbar (bool): whether to plot errors. Default False
             normalize (bool): Default True
         """
-        fig, ax = plt.subplots(figsize=[figureSize[0], figureSize[1]*2])
+        fig, ax = plt.subplots()
         if delay_shift is None:
             delay_shift = [0.]*len(self.traceHandlers)
         check_equal_length(delay_shift, self.traceHandlers)
-        clr_rgb = matplotlib.colormaps['plasma']
-        clr_list = np.linspace(0, 1, len(self.traceHandlers), endpoint=False)
+
         for i in range(len(self.traceHandlers)):
             if normalize:
                 norm_plot = self.traceHandlers[i].normalization_trace
             else:
                 norm_plot = 1
-            line_color = clr_rgb(clr_list[i])
             t, field = self.traceHandlers[i].get_trace()
             stdev_field = self.traceHandlers[i].get_stdev()
             if errorbar and stdev_field is not None:
-                ax.fill_between(t-delay_shift[i], offset*i + (field-stdev_field)/norm_plot,
+                last_fill = ax.fill_between(t-delay_shift[i], offset*i + (field-stdev_field)/norm_plot,
                                 offset*i + (field+stdev_field)/norm_plot,
-                                label='_nolegend_', color=line_color, alpha=0.2)
-            ax.plot(t-delay_shift[i], offset*i + field/norm_plot, label='Trace '+str(i),
-                    color=line_color, linewidth=lineWidth)
-        ax.set_xlabel('Time (fs)', fontsize=fontSize)
-        ax.set_ylabel('Field (a.u.)', fontsize=fontSize)
-        ax.set_title('Field traces', fontsize=fontSize)
-        plt.xticks(fontsize=tickSize)
-        plt.yticks(fontsize=tickSize)
+                                label='_nolegend_', alpha=0.3)
+                ax.plot(t-delay_shift[i], offset*i + field/norm_plot, label='Trace '+str(i), color=last_fill.get_facecolor(), alpha=1.0)
+            else:
+                ax.plot(t-delay_shift[i], offset*i + field/norm_plot, label='Trace '+str(i))
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Field (Arb. unit)')
+
         if labels is not None:
             handles, labels_dump = ax.get_legend_handles_labels()
-            plt.legend(handles[::-1], labels[::-1], prop={'size': legendFontSize}, loc='upper left')
+            plt.legend(handles[::-1], labels[::-1], loc='upper left')
         else:
             pass
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim, up_lim)
-        plt.show()
+        return fig
 
     def plot_spectra(self, low_lim=50, up_lim=1000, labels=None, offset=0.015):
         """plots all spectra.
@@ -1148,24 +1126,18 @@ class MultiTraceHandler:
             labels
             offset
         """
-        fig, ax = plt.subplots(figsize=[figureSize[0], figureSize[1]*2])
-        clr_rgb = matplotlib.colormaps['plasma']
-        clr_list = np.linspace(0, 1, len(self.traceHandlers), endpoint=False)
+        fig, ax = plt.subplots()
         for i in range(len(self.traceHandlers)):
-            line_color = clr_rgb(clr_list[i])
             self.traceHandlers[i].normalize_fft_spectrum()
             wvl, spctr = self.traceHandlers[i].get_spectrum_trace()
-            ax.plot(wvl, i*offset + spctr, linewidth=lineWidth, color=line_color)
-        ax.set_xlabel('wavelength (nm)', fontsize=fontSize)
-        ax.set_ylabel('intensity (a.u.)', fontsize=fontSize)
-        ax.set_title('FFT of the traces', fontsize=fontSize)
-        plt.xticks(fontsize=tickSize)
-        plt.yticks(fontsize=tickSize)
+            ax.plot(wvl, i*offset + spctr)
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Intensity (Arb. unit)')
         if labels is not None:
             handles, labels_dump = ax.get_legend_handles_labels()
-            plt.legend(handles[::-1], labels[::-1], prop={'size': legendFontSize}, loc='upper right')
+            plt.legend(handles[::-1], labels[::-1], loc='upper right')
         else:
             pass
         if low_lim is not None and up_lim is not None:
             ax.set_xlim(low_lim, up_lim)
-        plt.show()
+        return fig

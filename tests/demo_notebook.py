@@ -12,6 +12,7 @@ def _():
     import matplotlib.pyplot as plt
     import scipy
     import timeit
+    aw.plot.set_style('light', font_size=14)
     return aw, mo, np, plt, scipy, timeit
 
 
@@ -75,18 +76,20 @@ def _(aw, np, plt, scipy):
         interpolated_rs = aw.numeric.interpolate(x2, x, y, neighbors=3)
         interpolated_scipy = scipy.interpolate.CubicSpline(x,y)(x2)
 
-        fig,ax = plt.subplots(2,1)
-        ax[0].plot(x,y,'o', label="Input data")
+        fig,ax = plt.subplots(2,1, figsize=(6,6))
         ax[0].plot(x2, interpolated_rs, label="aw.numeric.interpolate")
         ax[0].plot(x2,interpolated_scipy,'--',label="scipy.interpolate.CubicSpline")
+        ax[0].plot(x,y,'.', label="Input data")
         ax[0].set_xlabel("x")
         ax[0].set_ylabel("y")
-        ax[0].legend()
+        ax[0].legend(loc='lower left')
+        aw.plot.label_letter('a',axis=ax[0])
         ax[1].semilogy(x2, np.abs(y2 - interpolated_rs),label="aw.numeric.interpolate")
         ax[1].plot(x2, np.abs(y2 - interpolated_scipy),label="scipy.interpolate.CubicSpline")
         ax[1].set_xlabel("x")
         ax[1].set_ylabel("Error")
         ax[1].legend()
+        aw.plot.label_letter('b',axis=ax[1])
 
     plot_interpolate_test()
     aw.plot.showmo()
@@ -135,7 +138,7 @@ def _(N_pts_range, aw, np, plt):
             x = np.linspace(-5, 5, N_pts_range[i])
             dx = x[1]-x[0]
             y = np.exp(-x**2/2)
-            fwhm.append(aw.attoworld_rs.fwhm(y, dx))
+            fwhm.append(aw.attoworld_rs.fwhm(y, dx,neighbors=2))
             fwhm_th.append(old_fwhm(y,x))
             dx_array.append(dx)
         plt.loglog(N_pts_range, dx_array, label="time step")

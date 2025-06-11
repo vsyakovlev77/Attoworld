@@ -3,12 +3,6 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 import pandas
 
-fontSize = 40
-legendFontSize = 30
-tickSize = 40
-lineWidth = 3
-figureSize = [30, 12]
-
 def box_smooth(y, box_pts):
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
@@ -78,8 +72,7 @@ def read_spectrum_maya(filename, remove_offsets_individually=False, nm_smearing=
     #if eliminate_outliers_spectrum:
     #    eliminate_outliers(spectrum, threshold=3, window_points=20)
     #    spectrum = gaussian_filter1d(spectrum, sigma=final_nm_smearing/(wvl[1]-wvl[0]))
-    ax.plot(wvl, spectrum, linewidth=3, label='Mean spectrum', color='black')
-    plt.show()
+    ax.plot(wvl, spectrum, label='Mean spectrum')
 
     return wvl, np.maximum(np.zeros(len(spectrum)), spectrum)
 
@@ -159,7 +152,6 @@ class SpectrumHandler:
             filetype (str): Type of the file to be read. Options are 'MayaScarab' (default) or 'OceanOptics'.
 
         """
-
         self.nm_smearing = nm_smearing
         self.wvl, self.spectrum = np.linspace(200, 1000, 800), np.zeros(800)
         self.calibration_lamp_wvl, self.calibration_lamp_spectrum = None, None
@@ -262,25 +254,21 @@ class SpectrumHandler:
         if low_lim_y is None or up_lim_y is None:
             low_lim_y = 0
             up_lim_y = 3
-        fig, ax = plt.subplots(figsize = figureSize)
-        ax.plot(self.wvl, self.spectrum / np.max(self.spectrum), linewidth=lineWidth, label='spectrometer reading')
+        fig, ax = plt.subplots()
+        ax.plot(self.wvl, self.spectrum / np.max(self.spectrum), label='spectrometer reading')
         multipl_factor_lamp_plot = (self.spectrum[(self.wvl > wavelength_ROI[0])&(self.wvl < wavelength_ROI[1])].mean() /
                                 self.calibration_lamp_spectrum[(self.calibration_lamp_wvl > wavelength_ROI[0])&(self.calibration_lamp_wvl < wavelength_ROI[1])].mean())
 
         ax.plot(self.calibration_lamp_wvl, self.calibration_lamp_spectrum / np.max(self.spectrum) * multipl_factor_lamp_plot,
-                linewidth=lineWidth, label='actual lamp spectrum')
+                label='actual lamp spectrum')
         if self.calibration_factor is not None:
-            ax.plot(self.wvl, self.calibration_factor, linewidth=lineWidth, label='calibration factor')
-        ax.set_title('Calibration measurement maya Oceanoptics', fontsize=fontSize)
-        ax.set_xlabel('Wavelength [nm]', fontsize=fontSize)
-        ax.set_ylabel('Intensity [a.u.]', fontsize=fontSize)
-        ax.legend(fontsize=legendFontSize,
-                  loc='upper right')
+            ax.plot(self.wvl, self.calibration_factor, label='calibration factor')
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Intensity (Arb. unit)')
+        ax.legend(loc='upper right')
         ax.set_xlim(low_lim, up_lim)
         ax.set_ylim(low_lim_y, up_lim_y)
-        plt.xticks(fontsize=tickSize)
-        plt.yticks(fontsize=tickSize)
-        plt.show()
+        return fig
 
     def calibrate_wavelength_axis(self, intercept: float, slope: float):
         """Calibrate the wavelength axis of the spectrum using the given coefficient of a linear fit.
@@ -459,17 +447,15 @@ class SpectrumHandler:
             self.spectrum = spectrum_stored[(wvl_stored>np.min(self.calibration_lamp_wvl))&(wvl_stored<np.max(self.calibration_lamp_wvl))]
 
     def plot_spectrum(self, low_lim=None, up_lim=None):
-        fig, ax = plt.subplots(figsize = figureSize)
+        fig, ax = plt.subplots()
         if low_lim is not None and up_lim is not None:
-            ax.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.spectrum[(self.wvl>low_lim)&(self.wvl<up_lim)], linewidth=lineWidth)
+            ax.plot(self.wvl[(self.wvl>low_lim)&(self.wvl<up_lim)], self.spectrum[(self.wvl>low_lim)&(self.wvl<up_lim)])
         else:
-            ax.plot(self.wvl, self.spectrum, linewidth=lineWidth)
-        ax.set_title('Spectrum', fontsize=fontSize)
-        ax.set_xlabel('Wavelength [nm]', fontsize=fontSize)
-        ax.set_ylabel('Intensity [a.u.]', fontsize=fontSize)
-        plt.xticks(fontsize=tickSize)
-        plt.yticks(fontsize=tickSize)
-        plt.show()
+            ax.plot(self.wvl, self.spectrum)
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Intensity (Arb. unit)')
+        return fig
+
 
 
 class MultiSpectrumHandler:
@@ -505,18 +491,14 @@ class MultiSpectrumHandler:
             raise ValueError("Either filenameList or wavelengthList and spectrumList or spectrumHandlerList must be provided. filetype, if provided, can only be 'MayaScarab' or 'OceanOptics'.")
 
     def plot(self, low_lim = None, up_lim = None):
-        fig, ax = plt.subplots(figsize = figureSize)
+        fig, ax = plt.subplots()
         for i, spectrumHandler in enumerate(self.spectrumHandlers):
             wvl, spectrum = spectrumHandler.get_spectrum()
             if low_lim is not None and up_lim is not None:
-                ax.plot(wvl[(wvl>low_lim)&(wvl<up_lim)], spectrum[(wvl>low_lim)&(wvl<up_lim)], linewidth=lineWidth, label=f'Spectrum {i+1}')
+                ax.plot(wvl[(wvl>low_lim)&(wvl<up_lim)], spectrum[(wvl>low_lim)&(wvl<up_lim)], label=f'Spectrum {i+1}')
             else:
-                ax.plot(wvl, spectrum, linewidth=lineWidth, label=f'Spectrum {i+1}')
-        ax.set_title('Spectra', fontsize=fontSize)
-        ax.set_xlabel('Wavelength [nm]', fontsize=fontSize)
-        ax.set_ylabel('Intensity [a.u.]', fontsize=fontSize)
-        ax.legend(fontsize=legendFontSize,
-                  loc='upper right')
-        plt.xticks(fontsize=tickSize)
-        plt.yticks(fontsize=tickSize)
-        plt.show()
+                ax.plot(wvl, spectrum, label=f'Spectrum {i+1}')
+        ax.set_xlabel('Wavelength (nm)')
+        ax.set_ylabel('Intensity (Arb. unit)')
+        ax.legend(loc='upper right')
+        return fig
