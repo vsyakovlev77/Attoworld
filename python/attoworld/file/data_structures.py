@@ -21,10 +21,53 @@ class Spectrogram:
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
-    
+
+    def to_per_frequency_dc_removed(self, extra_offset: float = 0.0):
+        """Perform DC offset removal on a measured spectrogram, on a per-frequency basis
+
+        Args:
+            extra_offset (float): subtract a value from the entire array (negative values are always set to zero)
+
+        Returns:
+            Spectrogram: the spectrogram with offset removed."""
+        new_data = np.array(self.data)
+        new_data -= extra_offset;
+        new_data[new_data<0.0] = 0.0
+        for _i in range(new_data.shape[0]):
+            new_data[_i,:] -= np.min(new_data[_i,:])
+
+        return Spectrogram(data = new_data, time=self.time, freq=self.freq)
+
+    def to_binned(self, dim: int = 64, dt: float = 5e-15, t0: Optional[float] = None, f0: float = 750e12):
+        """Bin a spectrogram to a FFT-appropriate shape
+
+        Args:
+            dim (int): size of each size of the resulting square data
+            dt (float): time step of the data
+            t0: (Optional[float]): time-zero of the data. If not specified, will be calculated by the first moment of the time-distribution of the signal
+            f0: (float): central frequency of the binned array
+
+        Returns:
+            Spectrogram: the binned spectrogram
+        """
+        _t = np.array(range(dim))*dt
+        _t -= np.mean(_t)
+        _f = np.fft.fftshift(np.fft.fftfreq(dim, d=dt) + f0)
+        binned_data = np.zeros((dim,self.time.shape[0]),dtype=float)
+        for _i in range(self.time.shape[0]):
+            binned_data[:,_i] = interpolate(_f, self.freq, np.array(self.data[:,_i]), neighbors=2)
+        binned_data /= np.max(binned_data[:])
+        if t0 is None:
+            ac = np.sum(binned_data,axis=0)
+            t0 = np.sum(ac*self.time)/np.sum(ac)
+        binned_data_square = np.zeros((dim,dim),dtype=float)
+        for _i in range(dim):
+            binned_data_square[_i,:] = interpolate(_t, self.time-t0, np.array(binned_data[_i,:]), neighbors=2)
+        return Spectrogram(data=binned_data_square, time=_t, freq=_f)
+
     def plot(self, ax: Optional[Axes] = None):
         """
-        Plot the reconstructed spectrogram.
+        Plot the spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
@@ -43,6 +86,30 @@ class Spectrogram:
         plt.colorbar(a)
         return fig
 
+    def plot_log(self, ax: Optional[Axes] = None):
+        """
+        Plot the spectrogram.
+
+        Args:
+            ax: optionally plot onto a pre-existing matplotlib Axes
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        logdata = np.array(self.data)
+        logdata[self.data>0.0] = np.log(self.data[self.data>0.0])
+        logdata[self.data<0.0] = 0.0
+        a=ax.pcolormesh(
+            1e15 * self.time,
+            1e-12 * self.freq,
+            logdata,
+            rasterized=True)
+        ax.set_xlabel('Time (fs)')
+        ax.set_ylabel('Frequency (THz)')
+        ax.grid(True,lw=1)
+        plt.colorbar(a)
+        return fig
 @dataclass(frozen=True, slots=True)
 class Waveform:
     """
@@ -295,8 +362,8 @@ class ComplexSpectrum:
                 is_frequency_scaled = wavelength_scaled)
         else:
             raise Exception("Insufficient data to make intensity spectrum.")
-    
-    
+
+
 
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
@@ -420,7 +487,7 @@ class IntensitySpectrum:
             freq = copy_if_not_none(self.freq),
             wavelength = copy_if_not_none(self.wavelength),
             is_frequency_scaled = self.is_frequency_scaled)
-            
+
     def plot_with_group_delay(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
         """
         Plot the spectrum and group delay curve.
@@ -437,7 +504,6 @@ class IntensitySpectrum:
 
         if self.spectrum is not None and self.phase is not None and self.freq is not None:
             start_index = np.argmax(self.spectrum>0)
-            print(start_index)
             intensity = self.spectrum[start_index::]
             freq = self.freq[start_index::]
             wl = constants.speed_of_light/freq
@@ -509,7 +575,7 @@ class ComplexEnvelope:
             )
         else:
             raise Exception("Tried to convert non-existent data.")
-            
+
     def to_waveform(self, interpolation_factor: int = 1, CEP_shift: float = 0.0) -> Waveform:
         """
         Returns a Waveform based on the data
@@ -529,7 +595,7 @@ class ComplexEnvelope:
             )
         else:
             raise Exception("Not enough data to make a Waveform")
-            
+
     def plot(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
         """
         Plot the pulse.
@@ -584,7 +650,7 @@ class FrogData:
     pulse: Waveform
     measured_spectrogram: Spectrogram
     reconstructed_spectrogram: Spectrogram
-    
+
     def plot_measured_spectrogram(self, ax: Optional[Axes] = None):
         """
         Plot the measured spectrogram.
@@ -612,7 +678,7 @@ class FrogData:
         else:
             fig = ax.get_figure()
         self.reconstructed_spectrogram.plot(ax)
-        ax.set_title(f"Reconstruction (G': {self.get_error():0.4f})")
+        ax.set_title(f"Reconstruction (G': {self.get_error():0.2e})")
         return fig
 
     def plot_pulse(self, ax: Optional[Axes] = None, phase_blanking: float = 0.05, xlim=None):
@@ -636,7 +702,7 @@ class FrogData:
         """
         return self.spectrum.to_intensity_spectrum().plot_with_group_delay(ax, phase_blanking, xlim)
 
-    def plot_all(self, phase_blanking=0.05, time_xlims=None, wavelength_xlims=None):
+    def plot_all(self, phase_blanking=0.05, time_xlims=None, wavelength_xlims=None, figsize=None):
         """
         Produce a 4-panel plot of the FROG results, combining calls to plot_measured_spectrogram(),
         plot_reconstructed_spectrogram(), plot_pulse() and plot_spectrum() as subplots, with letter labels.
@@ -644,9 +710,13 @@ class FrogData:
         Args:
             phase_blanking: relative intensity at which to show phase information
             time_xlim: x-axis limits to pass to the plot of the pulse
-            wavelength_xlim: x-axis limits to pass to the plot of the spectrum"""
-        default_figsize = plt.rcParams['figure.figsize']
-        fig,ax = plt.subplots(2,2, figsize=(default_figsize[0] * 2, default_figsize[1]*2))
+            wavelength_xlim: x-axis limits to pass to the plot of the spectrum
+            figsize: custom figure size
+        """
+        if figsize is None:
+            default_figsize = plt.rcParams['figure.figsize']
+            figsize = (default_figsize[0] * 2, default_figsize[1]*2)
+        fig,ax = plt.subplots(2,2, figsize=figsize)
         self.plot_measured_spectrogram(ax[0,0])
         label_letter('a', ax[0,0])
         self.plot_reconstructed_spectrogram(ax[1,0])
@@ -661,8 +731,7 @@ class FrogData:
         Get the G' error of the reconstruction
         """
         return np.sqrt(
-            np.sum( (self.measured_spectrogram.data[:] - self.reconstructed_spectrogram.data[:])**2)
-            / np.sum(self.measured_spectrogram.data[:]**2))
+            np.sum( (self.measured_spectrogram.data[:] - self.reconstructed_spectrogram.data[:])**2) / np.sum(self.measured_spectrogram.data[:]**2))
     def get_fwhm(self) -> float:
         """
         Get the full-width-at-half-max value of the reconstructed pulse

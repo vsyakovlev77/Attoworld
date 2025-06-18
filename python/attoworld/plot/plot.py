@@ -109,7 +109,7 @@ class Char:
 
     Examples:
         >>> plt.xlabel(aw.plot.Char.wavelength_micron)
-        >>> plt.ylabel(f'{aw.plot.Char.theta} ({aw.plot.Char.degrees}))
+        >>> plt.ylabel(f'{aw.plot.Char.theta} ({aw.plot.Char.degrees})')
     """
     mu: str = '\u03bc'
     phi: str = '\u03a6'
@@ -117,4 +117,6 @@ class Char:
     theta: str = '\u03b8'
     micron: str = '\u03bcm'
     degrees: str = '\u00B0'
+    angstrom: str = '\u212B'
     wavelength_micron: str = 'Wavelength (\u03bcm)'
+    energy_microjoule: str = 'Energy (\u03bcJ)'
