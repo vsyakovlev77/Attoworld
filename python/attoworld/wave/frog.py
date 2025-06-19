@@ -47,7 +47,10 @@ def bundle_frog_reconstruction(t, result, measurement, f0: float=375e12, interpo
         measured_spectrogram=measurement_sg,
         pulse=result_ce,
         reconstructed_spectrogram=result_sg,
-        spectrum=result_cs)
+        spectrum=result_cs,
+        raw_reconstruction = result,
+        f0 = f0,
+        dt = (t[1]-t[0]))
 
 # FROG functions
 def generate_shg_spectrogram(Et, Gt):
@@ -63,6 +66,7 @@ def generate_shg_spectrogram(Et, Gt):
     spectrogram_timetime = np.outer(Et, Gt)
     for _i in range(Et.shape[0]):
         spectrogram_timetime[_i,:] = blank_roll(spectrogram_timetime[_i,:],-_i + int(Et.shape[0]/2))
+
     return np.fft.fft(spectrogram_timetime,axis=0)
 
 def blank_roll(data: np.ndarray, step):
@@ -98,7 +102,9 @@ def apply_iteration(Et,Gt,meas_sqrt):
 def calculate_g_error(measurement, pulse):
     """Calculate G' error helper function"""
     meas_squared=measurement**2
+    meas_squared/=np.linalg.norm(meas_squared)
     reconstructed = np.abs(generate_shg_spectrogram(pulse,pulse))**2
+    reconstructed /= np.linalg.norm(reconstructed)
     return np.sqrt(np.sum((meas_squared[:] - reconstructed[:])**2)/np.sum(meas_squared[:]**2))
 
 def reconstruct_shg_frog_core(measurement_sg_sqrt, guess = None, max_iterations: int=200):
@@ -119,15 +125,25 @@ def reconstruct_shg_frog_core(measurement_sg_sqrt, guess = None, max_iterations:
     else:
         gate = guess
     best = shift_to_zero_and_normalize(guess+gate)
+    current = best
     best_error = calculate_g_error(measurement_sg_sqrt,best)
     for _i in range(max_iterations):
-        guess, gate = apply_iteration(guess+gate, guess+gate, measurement_sg_sqrt)
+        guess, gate = apply_iteration(current, current, measurement_sg_sqrt)
         current = shift_to_zero_and_normalize(guess+gate)
+        current = fix_aliasing(current)
         current_error = calculate_g_error(measurement_sg_sqrt, current)
         if current_error < best_error:
             best_error = current_error
             best = current
     return best
+
+def fix_aliasing(result):
+    offset = int(len(result)/2)
+    firstprod = np.real(result[offset]) * np.real(result[offset+1])
+    if firstprod<0.0:
+        return np.fft.ifft(np.fft.fftshift(np.fft.fft(result)))
+    else:
+        return result
 
 def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 100, polish_iterations=5000, repeats: int = 256):
     """
@@ -154,7 +170,6 @@ def reconstruct_shg_frog(measurement: Spectrogram, test_iterations: int = 100, p
         sqrt_sg,
         guess=results[:,min_error_index],
         max_iterations=polish_iterations)
-
     return bundle_frog_reconstruction(
         t=measurement.time,
         result = result,

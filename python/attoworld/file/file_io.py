@@ -113,12 +113,12 @@ def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
         filename (Path | str): the name (path) of the file
     """
     with open(filename, "r") as f:
-        l = str(f.readline())
-        l = l.split()
-        n1 = int(l[0])
-        n2 = int(l[1])
-        l = str(f.readline())
-        l = l.split()
+        line = str(f.readline())
+        line = line.split()
+        n1 = int(line[0])
+        n2 = int(line[1])
+        line = str(f.readline())
+        line = line.split()
     measured_data = pd.read_csv(filename, sep='\t', header = None, skiprows=2)
     measure = []
     raw_freq = 1e9*constants.speed_of_light/np.array(measured_data[0][0:n2]).squeeze()
@@ -154,7 +154,15 @@ def read_Trebino_FROG_data(filename: str) -> FrogData:
     pulse = spectrum.to_centered_waveform()
     measured_spectrogram = read_Trebino_FROG_matrix(filename+'.A.dat')
     reconstructed_spectrogram = read_Trebino_FROG_matrix(filename+'.Arecon.dat')
+    raw_speck = np.array(pd.read_csv(filename+'.Speck.dat', sep='\t', header = None), dtype=float)
+    raw_ek = np.array(pd.read_csv(filename+'.Ek.dat', sep='\t', header = None), dtype=float)
+    f0 = 1e9*np.mean(constants.speed_of_light/raw_speck[:,0])
+    dt = 1e-15*(raw_ek[1,0] - raw_ek[0,0])
+    raw_reconstruction = raw_ek[:,3] + 1.0j * raw_ek[:,4]
     return FrogData(spectrum = spectrum,
         pulse = pulse,
         measured_spectrogram = measured_spectrogram,
-        reconstructed_spectrogram = reconstructed_spectrogram)
+        reconstructed_spectrogram = reconstructed_spectrogram,
+        raw_reconstruction=raw_reconstruction,
+        dt = dt,
+        f0 = float(f0))
