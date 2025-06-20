@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass
 import numpy as np
 from typing import Optional
 from ..numeric import (
@@ -20,13 +20,107 @@ import scipy.signal as sig
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+import json
 
 
+def json_io(cls):
+    """
+    Adds functions to save and load the dataclass as json
+    """
+
+    def from_json_data(cls, data: dict):
+        """
+        Takes json data and makes an instance of the class
+
+        Args:
+            data (dict): the result of a call of .to_dict on the class
+        """
+
+        def handle_complex_array(serialized_array) -> np.ndarray:
+            """Helper function to deserialize numpy arrays, handling complex types"""
+            if isinstance(serialized_array, list) and all(
+                isinstance(item, dict) and "re" in item and "im" in item
+                for item in serialized_array
+            ):
+                return np.array(
+                    [complex(item["re"], item["im"]) for item in serialized_array],
+                    dtype=np.complex128,
+                )
+            return np.array(serialized_array)
+
+        loaded_data = {}
+        for field_name, field_type in cls.__annotations__.items():
+            if field_type is np.ndarray:
+                loaded_data[field_name] = handle_complex_array(data[field_name])
+            elif is_dataclass(field_type):
+                loaded_data[field_name] = field_type.from_json_data(data[field_name])
+            else:
+                loaded_data[field_name] = data[field_name]
+        return cls(**loaded_data)
+
+    def load_json(cls, filename: str):
+        """
+        load from a json file
+
+        Args:
+            filename (str): path to the file
+        """
+        with open(filename, "r") as file:
+            data = json.load(file)
+            return cls.from_json_data(data)
+
+    def save_to_json(instance, filename: str):
+        """
+        save to a json file
+
+        Args:
+            filename (str): path to the file
+        """
+        data_dict = instance.to_dict()
+        with open(filename, "w") as file:
+            json.dump(data_dict, file, indent=4)
+
+    def to_dict(instance):
+        """
+        serialize the class into a dict
+        """
+        data_dict = {}
+        for field_name, field_type in instance.__annotations__.items():
+            field_value = getattr(instance, field_name)
+            if field_type is np.ndarray:
+                if field_value.dtype == np.complex128:
+                    data_dict[field_name] = [
+                        {"re": num.real, "im": num.imag} for num in field_value.tolist()
+                    ]
+                else:
+                    data_dict[field_name] = field_value.tolist()
+            elif is_dataclass(field_type):
+                data_dict[field_name] = field_value.to_dict()
+            else:
+                data_dict[field_name] = field_value
+        return data_dict
+
+    cls.from_json_data = classmethod(from_json_data)
+    cls.load_json = classmethod(load_json)
+    cls.to_dict = to_dict
+    cls.save_to_json = save_to_json
+    return cls
+
+
+@json_io
 @dataclass(frozen=True, slots=True)
 class Spectrogram:
     data: np.ndarray
     time: np.ndarray
     freq: np.ndarray
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.data.setflags(write=False)
+        self.time.setflags(write=False)
+        self.freq.setflags(write=False)
 
     def save(self, filename):
         """
@@ -183,6 +277,7 @@ class Spectrogram:
         return fig
 
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class Waveform:
     """
@@ -200,6 +295,13 @@ class Waveform:
     time: np.ndarray
     dt: float
     is_uniformly_spaced: bool = False
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.wave.setflags(write=False)
+        self.time.setflags(write=False)
 
     def copy(self):
         """
@@ -367,6 +469,7 @@ class Waveform:
         return fwhm(uniform_self.wave**2, uniform_self.dt)
 
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class ComplexSpectrum:
     """
@@ -379,6 +482,13 @@ class ComplexSpectrum:
 
     spectrum: np.ndarray
     freq: np.ndarray
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.spectrum.setflags(write=False)
+        self.freq.setflags(write=False)
 
     def copy(self):
         return copy.deepcopy(self)
@@ -446,6 +556,7 @@ class ComplexSpectrum:
         )
 
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class IntensitySpectrum:
     """
@@ -464,6 +575,16 @@ class IntensitySpectrum:
     freq: np.ndarray
     wavelength: np.ndarray
     is_frequency_scaled: bool = False
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.spectrum.setflags(write=False)
+        self.freq.setflags(write=False)
+        self.wavelength.setflags(write=False)
+        if self.phase is not None:
+            self.phase.setflags(write=False)
 
     def copy(self):
         return copy.deepcopy(self)
@@ -633,6 +754,7 @@ class IntensitySpectrum:
         return fig
 
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class ComplexEnvelope:
     """
@@ -649,6 +771,13 @@ class ComplexEnvelope:
     time: np.ndarray
     dt: float
     carrier_frequency: float = 0.0
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.envelope.setflags(write=False)
+        self.time.setflags(write=False)
 
     def time_fs(self):
         return 1e15 * self.time
@@ -754,6 +883,7 @@ class ComplexEnvelope:
         return fig
 
 
+@json_io
 @dataclass(frozen=True, slots=True)
 class FrogData:
     """
@@ -773,6 +903,16 @@ class FrogData:
     raw_reconstruction: np.ndarray
     f0: float
     dt: float
+
+    def lock(self):
+        """
+        Make the data immutable
+        """
+        self.raw_reconstruction.setflags(write=False)
+        self.spectrum.lock()
+        self.pulse.lock()
+        self.measured_spectrogram.lock()
+        self.reconstructed_spectrogram.lock()
 
     def save(self, base_filename):
         """

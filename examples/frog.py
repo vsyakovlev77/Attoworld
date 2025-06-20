@@ -30,7 +30,7 @@ def _(mo):
 def _(aw, file_browser):
     _path = file_browser.path()
     if _path is not None:
-        input_data = aw.file.read_dwc(file_path=_path)
+        input_data = aw.data.read_dwc(file_path=_path)
     else:
         input_data = None
     return (input_data,)
@@ -38,11 +38,11 @@ def _(aw, file_browser):
 
 @app.cell
 def _(mo):
-    bin_size = mo.ui.number(label="size", value=48, step=2)
-    bin_dt = mo.ui.number(label="dt (fs)", value=4.5, step=0.1)
+    bin_size = mo.ui.number(label="size", value=96, step=2)
+    bin_dt = mo.ui.number(label="dt (fs)", value=3, step=0.1)
     bin_f0 = mo.ui.number(label="f0 (THz)", value=740, step=1)
     bin_offset = mo.ui.number(label="dark noise level", value=0.0002, step=1e-5)
-    bin_fblock = mo.ui.number(label="freq block avg.", value = 4, step = 1)
+    bin_fblock = mo.ui.number(label="freq block avg.", value = 16, step = 1)
     bin_tblock = mo.ui.number(label="time block avg.", value = 1, step = 1)
     bin_median = mo.ui.checkbox(label="median blocking", value=False)
     bin_button = mo.ui.run_button(label="bin")
@@ -106,9 +106,9 @@ def _(
 
 @app.cell
 def _(mo):
-    recon_trials = mo.ui.number(value=128, label="Initial guesses")
+    recon_trials = mo.ui.number(value=64, label="Initial guesses")
     recon_trial_length = mo.ui.number(value=128, label="Trial iterations")
-    recon_followups = mo.ui.number(value=10000, label="Finishing iterations")
+    recon_followups = mo.ui.number(value=5000, label="Finishing iterations")
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
@@ -174,6 +174,7 @@ def _(filedialog, mo, result, save_button):
 
     if _file_path is not None and result is not None:
         result.save(_file_path)
+        result.save_to_json(_file_path+'.json')
 
     return
 
@@ -188,11 +189,6 @@ def _(filedialog, mo, plot, result, save_plot_button):
 
     if _file_path is not None and result is not None:
         plot.savefig(_file_path)
-    return
-
-
-@app.cell
-def _():
     return
 
 
