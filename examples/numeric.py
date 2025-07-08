@@ -12,6 +12,7 @@ def _():
     import matplotlib.pyplot as plt
     import scipy
     import timeit
+
     aw.plot.set_style("nick_dark", font_size=14)
     return aw, mo, np, plt, scipy, timeit
 

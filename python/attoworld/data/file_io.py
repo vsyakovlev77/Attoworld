@@ -6,7 +6,8 @@ from ..numeric import interpolate
 from .. import spectrum
 from pathlib import Path
 from typing import Optional
-from . import data_structures
+from .interop import IntensitySpectrum, Waveform, ComplexSpectrum
+from .frog_data import Spectrogram, FrogData
 
 
 def read_dwc(file_path):
@@ -45,16 +46,14 @@ def read_dwc(file_path):
         dt = 1e-15 * delay_increment
         delays = dt * np.array(range(data_array.shape[1]))
         delays -= np.mean(delays)
-        return data_structures.Spectrogram(
-            data=data_array_freq, time=delays, freq=freqs
-        )
+        return Spectrogram(data=data_array_freq, time=delays, freq=freqs)
     else:
         raise Exception("Interpolation failure reading dwc file")
 
 
 def load_mean_spectrum_from_scarab(filename: str):
     data = np.loadtxt(filename)
-    return data_structures.IntensitySpectrum(
+    return IntensitySpectrum(
         spectrum=np.mean(data[:, 1::], axis=1),
         wavelength=1e-9 * data[:, 0],
         freq=1e9 * constants.speed_of_light / data[:, 0],
@@ -85,7 +84,7 @@ def load_spectrum_from_text(
     wavelength = wavelength_multiplier * np.array(data[wavelength_field])
     freq = constants.speed_of_light / wavelength
     spectrum = np.array(data[spectrum_field])
-    return data_structures.IntensitySpectrum(
+    return IntensitySpectrum(
         spectrum=spectrum,
         wavelength=wavelength,
         freq=freq,
@@ -99,7 +98,7 @@ def load_waveform_from_text(
     time_field: str = "delay (fs)",
     wave_field: str = "field (a.u.)",
     sep="\t",
-) -> data_structures.Waveform:
+) -> Waveform:
     """Loads a waveform from a text file
 
     Args:
@@ -119,9 +118,7 @@ def load_waveform_from_text(
     dt = time[1] - time[0]
     diff_time = np.diff(time)
     uniform = bool(np.all(np.isclose(diff_time, diff_time[0])))
-    return data_structures.Waveform(
-        wave=wave, time=time, dt=dt, is_uniformly_spaced=uniform
-    )
+    return Waveform(wave=wave, time=time, dt=dt, is_uniformly_spaced=uniform)
 
 
 def load_waves_from_matfile(filename: str, phase: Optional[float] = None):
@@ -151,7 +148,7 @@ def load_waves_from_matfile(filename: str, phase: Optional[float] = None):
         return time_delay, signal
 
 
-def read_Trebino_FROG_matrix(filename: Path | str) -> data_structures.Spectrogram:
+def read_Trebino_FROG_matrix(filename: Path | str) -> Spectrogram:
     """
     Read a spectrogram file made by the Trebino FROG code
 
@@ -176,10 +173,10 @@ def read_Trebino_FROG_matrix(filename: Path | str) -> data_structures.Spectrogra
     for i in range(n1):
         measure.append(measured_data[0][(i + 2) * n2 : (i + 3) * n2])
     data = np.array(measure)
-    return data_structures.Spectrogram(data=data, time=time, freq=freq)
+    return Spectrogram(data=data, time=time, freq=freq)
 
 
-def read_Trebino_FROG_speck(filename: Path | str) -> data_structures.ComplexSpectrum:
+def read_Trebino_FROG_speck(filename: Path | str) -> ComplexSpectrum:
     """
     Read a .Speck file made by the Trebino FROG code
 
@@ -193,10 +190,10 @@ def read_Trebino_FROG_speck(filename: Path | str) -> data_structures.ComplexSpec
     spectrum = interpolate(freq, raw_freq, data[:, 3]) + 1j * interpolate(
         freq, raw_freq, data[:, 4]
     )
-    return data_structures.ComplexSpectrum(spectrum=spectrum, freq=freq)
+    return ComplexSpectrum(spectrum=spectrum, freq=freq)
 
 
-def read_Trebino_FROG_data(filename: str) -> data_structures.FrogData:
+def read_Trebino_FROG_data(filename: str) -> FrogData:
     """
     Read a set of data produced by the Trebino FROG reconstruction code.
 
@@ -215,7 +212,7 @@ def read_Trebino_FROG_data(filename: str) -> data_structures.FrogData:
     f0 = 1e9 * np.mean(constants.speed_of_light / raw_speck[:, 0])
     dt = 1e-15 * (raw_ek[1, 0] - raw_ek[0, 0])
     raw_reconstruction = raw_ek[:, 3] + 1.0j * raw_ek[:, 4]
-    return data_structures.FrogData(
+    return FrogData(
         spectrum=spectrum,
         pulse=pulse,
         measured_spectrogram=measured_spectrogram,
