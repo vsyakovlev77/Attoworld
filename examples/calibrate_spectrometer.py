@@ -5,7 +5,7 @@
 
 import marimo
 
-__generated_with = "0.14.9"
+__generated_with = "0.14.13"
 app = marimo.App(width="full")
 
 
@@ -67,9 +67,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Now, manually adjust the wavelength axis (optional - if it's not necessary, set offset and slope to zero)"""
-    )
+    mo.md(r"""Now, manually adjust the wavelength axis (optional - if it's not necessary, set offset and slope to zero)""")
     return
 
 
@@ -272,9 +270,7 @@ def _(measurement, mo, np):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""If the result is good, save it as an .npz file, and contribute it to the database :)"""
-    )
+    mo.md(r"""If the result is good, save it as an .npz file, and contribute it to the database :)""")
     return
 
 
@@ -322,13 +318,14 @@ def _(calibration_dataset, filedialog, mo, save_dataset_button):
 
 @app.cell
 def _():
-    import marimo as mo
     import attoworld as aw
+    import marimo as mo
 
     aw.plot.set_style("nick_dark")
-    import numpy as np
     import tkinter as tk
     from tkinter import filedialog
+
+    import numpy as np
 
     root = tk.Tk()
     root.withdraw()

@@ -1,23 +1,28 @@
-from .complex_spectrum import ComplexSpectrum
-from .complex_envelope import ComplexEnvelope
-from .waveform import Waveform
-from .intensity_spectrum import IntensitySpectrum
-import numpy as np
+"""Operations for converting the data containters into each other."""
 from typing import Optional
+
+import numpy as np
+import scipy.signal as sig
+from scipy import constants
+
 from ..numeric import (
     find_maximum_location,
 )
-from scipy import constants
-import scipy.signal as sig
+from .complex_envelope import ComplexEnvelope
+from .complex_spectrum import ComplexSpectrum
+from .decorators import add_method
+from .intensity_spectrum import IntensitySpectrum
+from .waveform import Waveform
 
 
-
+@add_method(Waveform, "to_complex_spectrum")
 def waveform_to_complex_spectrum(self, padding_factor: int = 1):
-    """
-    Converts to a ComplexSpectrum class
+    """Converts to a ComplexSpectrum class.
 
     Args:
+        self: the class
         padding_factor (int): factor by which to expand the temporal length in the FFT, giving a smoother spectrum
+
     """
     if self.is_uniformly_spaced:
         new_spectrum = np.fft.rfft(
@@ -36,33 +41,37 @@ def waveform_to_complex_spectrum(self, padding_factor: int = 1):
     return ComplexSpectrum(spectrum=new_spectrum, freq=new_freq)
 
 
+@add_method(Waveform, "to_intensity_spectrum")
 def waveform_to_intensity_spectrum(
     self, wavelength_scaled: bool = True, padding_factor: int = 1
 ):
-    """
-    Converts to an intensity spectrum
+    """Converts to an intensity spectrum.
 
     Args:
+        self: the class
         wavelength_scaled (bool): Correct the spectral intensities for plotting on a wavelength scale
+        padding_factor (int): the factor by which the length will be multiplied
+
     """
     return self.to_complex_spectrum(padding_factor).to_intensity_spectrum(
         wavelength_scaled
     )
 
 
+@add_method(Waveform, "to_time_derivative")
 def waveform_to_time_derivative(self):
-    """
-    Return the time-derivative of the waveform
-    """
+    """Return the time-derivative of the waveform."""
     return self.to_complex_spectrum().to_time_derivative().to_waveform()
 
 
+@add_method(Waveform, "to_complex_envelope")
 def waveform_to_complex_envelope(self, f0: float = 0.0):
-    """
-    Return a ComplexEnvelope class corresponding to the waveform
+    """Return a ComplexEnvelope class corresponding to the waveform.
 
     Args:
+        self: the class
         f0 (float): central frequency to use when constructing the envelope. E.g. oscillation at this frequency will be cancelled.
+
     """
     uniform_self = self.to_uniformly_spaced()
     analytic = np.array(
@@ -77,26 +86,18 @@ def waveform_to_complex_envelope(self, f0: float = 0.0):
     )
 
 
-Waveform.to_complex_spectrum = waveform_to_complex_spectrum
-Waveform.to_intensity_spectrum = waveform_to_intensity_spectrum
-Waveform.to_time_derivative = waveform_to_time_derivative
-Waveform.to_complex_envelope = waveform_to_complex_envelope
-
-
+@add_method(ComplexSpectrum, "to_waveform")
 def complexspectrum_to_waveform(self):
-    """
-    Create a Waveform based on this complex spectrum.
-    """
+    """Create a Waveform based on this complex spectrum."""
     wave = np.fft.irfft(self.spectrum, axis=0)
     dt = 0.5 / (self.freq[-1] - self.freq[0])
     time = dt * np.array(range(wave.shape[0]))
     return Waveform(wave=wave, time=time, dt=dt, is_uniformly_spaced=True)
 
 
+@add_method(ComplexSpectrum, "to_centered_waveform")
 def complexspectrum_to_centered_waveform(self):
-    """
-    Create a Waveform based on this complex spectrum and center it in the time window
-    """
+    """Create a Waveform based on this complex spectrum and center it in the time window."""
     wave = np.fft.irfft(self.spectrum, axis=0)
     dt = 0.5 / (self.freq[-1] - self.freq[0])
     time = dt * np.array(range(wave.shape[0]))
@@ -108,11 +109,15 @@ def complexspectrum_to_centered_waveform(self):
     return Waveform(wave=wave, time=time, dt=dt, is_uniformly_spaced=True)
 
 
+@add_method(ComplexSpectrum, "to_intensity_spectrum")
 def complexspectrum_to_intensity_spectrum(self, wavelength_scaled: bool = True):
-    """Create an IntensitySpectrum based on the current ComplexSpectrum
+    """Create an IntensitySpectrum based on the current ComplexSpectrum.
 
     Args:
-        wavelength_scaled (bool): Apply the wavelength^-2 Jakobian such to correspond to W/nm spectrum"""
+        self: the class
+        wavelength_scaled (bool): Apply the wavelength^-2 Jakobian such to correspond to W/nm spectrum
+
+    """
     new_spectrum = np.array(np.abs(self.spectrum[self.freq > 0.0]) ** 2)
     new_freq = np.array(self.freq[self.freq > 0.0])
     new_wavelength = constants.speed_of_light / new_freq
@@ -127,20 +132,17 @@ def complexspectrum_to_intensity_spectrum(self, wavelength_scaled: bool = True):
     )
 
 
-ComplexSpectrum.to_waveform = complexspectrum_to_waveform
-ComplexSpectrum.to_centered_waveform = complexspectrum_to_centered_waveform
-ComplexSpectrum.to_intensity_spectrum = complexspectrum_to_intensity_spectrum
-
-
+@add_method(IntensitySpectrum, "get_transform_limited_pulse")
 def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
-    """
-    Returns the transform-limited pulse corresponding to the spectrum.
+    """Returns the transform-limited pulse corresponding to the spectrum.
 
     Args:
+        self: the class
         gate_level (float): Apply a gate such that only values above gate_level*max(spectrum) are included
 
     Returns:
         ComplexEnvelope: the transform-limited pulse
+
     """
     if self.spectrum is not None:
         from ..spectrum import transform_limited_pulse_from_spectrometer
@@ -162,16 +164,11 @@ def get_transform_limited_pulse(self, gate_level: Optional[float] = None):
     raise Exception("Missing data")
 
 
-IntensitySpectrum.get_transform_limited_pulse = get_transform_limited_pulse
-
-
+@add_method(ComplexEnvelope, "to_complex_spectrum")
 def complex_envelope_to_complex_spectrum(
     self, padding_factor: int = 1
 ) -> ComplexSpectrum:
-    """
-    Returns a ComplexSpectrum based on the data
-    """
-
+    """Returns a ComplexSpectrum based on the data."""
     return ComplexSpectrum(
         spectrum=np.fft.rfft(self.envelope, self.envelope.shape[0] * padding_factor),
         freq=np.fft.rfftfreq(self.envelope.shape[0] * padding_factor, self.dt)
@@ -179,12 +176,11 @@ def complex_envelope_to_complex_spectrum(
     )
 
 
+@add_method(ComplexEnvelope, "to_waveform")
 def complex_envelope_to_waveform(
     self, interpolation_factor: int = 1, CEP_shift: float = 0.0
 ) -> Waveform:
-    """
-    Returns a Waveform based on the data
-    """
+    """Returns a Waveform based on the data."""
     output_dt = self.dt / interpolation_factor
     output_time = self.time[0] + output_dt * np.array(
         range(self.time.shape[0] * interpolation_factor)
@@ -206,7 +202,3 @@ def complex_envelope_to_waveform(
         dt=output_dt,
         is_uniformly_spaced=True,
     )
-
-
-ComplexEnvelope.to_complex_spectrum = complex_envelope_to_complex_spectrum
-ComplexEnvelope.to_waveform = complex_envelope_to_waveform

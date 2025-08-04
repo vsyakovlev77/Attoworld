@@ -1,22 +1,41 @@
-import yaml
-import numpy as np
+"""Class and function decorators."""
+
 from dataclasses import is_dataclass
 
+import numpy as np
+import yaml
+
+
+def add_method(cls, name: str):
+    """Adds the decorated function as a member function of a class. The first argument of the function should be 'self'.
+
+    Args:
+        cls: The class type
+        name: What the method will be called
+
+    """
+
+    def decorator(func):
+        setattr(cls, name, func)
+        return func
+
+    return decorator
+
+
 def yaml_io(cls):
-    """
-    Adds functions to save and load the dataclass as yaml
-    """
+    """Adds functions to save and load the dataclass as yaml."""
 
     def from_dict(cls, data: dict):
-        """
-        Takes a dict and makes an instance of the class
+        """Takes a dict and makes an instance of the class.
 
         Args:
+            cls: the class (hidden)
             data (dict): the result of a call of .to_dict on the class
+
         """
 
         def handle_complex_array(serialized_array) -> np.ndarray:
-            """Helper function to deserialize numpy arrays, handling complex types"""
+            """Helper function to deserialize numpy arrays, handling complex types."""
             if isinstance(serialized_array, list) and all(
                 isinstance(item, dict) and "re" in item and "im" in item
                 for item in serialized_array
@@ -38,31 +57,31 @@ def yaml_io(cls):
         return cls(**loaded_data)
 
     def load_yaml(cls, filename: str):
-        """
-        load from a yaml file
+        """Load from a yaml file.
 
         Args:
+            cls: the class (hidden)
             filename (str): path to the file
+
         """
         with open(filename, "r") as file:
             data = yaml.load(file, yaml.SafeLoader)
             return cls.from_dict(data)
 
     def save_yaml(instance, filename: str):
-        """
-        save to a yaml file
+        """Save to a yaml file.
 
         Args:
+            instance: the class (hidden)
             filename (str): path to the file
+
         """
         data_dict = instance.to_dict()
         with open(filename, "w") as file:
             yaml.dump(data_dict, file)
 
     def to_dict(instance):
-        """
-        serialize the class into a dict
-        """
+        """Serialize the class into a dict."""
         data_dict = {}
         for field_name, field_type in instance.__annotations__.items():
             field_value = getattr(instance, field_name)
