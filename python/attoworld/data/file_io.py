@@ -1,5 +1,6 @@
 """Functions for accessing and saving data."""
 
+import io
 from pathlib import Path
 from typing import Optional
 
@@ -14,26 +15,37 @@ from .frog_data import FrogData, Spectrogram
 from .interop import ComplexSpectrum, IntensitySpectrum, Waveform
 
 
-def read_dwc(file_path):
+def read_dwc(file_or_path, is_buffer: bool = False):
     """Reads files in the .dwc format produced by many FROG scanners.
 
     Args:
-        file_path: path to the .dwc file
+        file_or_path: path to the .dwc file
+        is_buffer: set to true if you are giving a file in a bytes buffer instead of a path
 
     Returns:
         Spectrogram: the loaded data
 
     """
-    with open(file_path, "r") as file:
-        lines = file.readlines()
-        delay_increment = float(lines[2].strip().split("=")[1])
+    if is_buffer:
+        file_or_path = io.BytesIO(file_or_path)
+        lines = file_or_path.readlines()
+        delay_increment = float(lines[2].decode().strip().split("=")[1])
+        file_or_path.seek(0)
+        print(delay_increment)
+    else:
+        with open(file_or_path, "r") as file:
+            lines = file.readlines()
+            delay_increment = float(lines[2].strip().split("=")[1])
 
     wavelength_vector = pd.read_csv(
-        file_path, skiprows=5, nrows=1, delimiter="\t", header=None
+        file_or_path, skiprows=5, nrows=1, delimiter="\t", header=None
     ).values[0]
 
+    if is_buffer:
+        file_or_path.seek(0)
+
     data_array = pd.read_csv(
-        file_path, skiprows=8, delimiter="\t", header=None, dtype=float
+        file_or_path, skiprows=8, delimiter="\t", header=None, dtype=float
     ).values
 
     freqs, first_spec = spectrum.wavelength_to_frequency(
