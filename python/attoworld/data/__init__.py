@@ -19,6 +19,7 @@ from .interop import (
     Waveform,
 )
 from .luna_result import LunaResult
+from .spectrogram import FrogBinSettings
 from .spectrometer_calibration_dataset import (
     CalibrationDataset,
     CalibrationInput,
@@ -44,6 +45,7 @@ __all__ = [
     "IntensitySpectrum",
     "ComplexEnvelope",
     "Spectrogram",
+    "FrogBinSettings",
     "CalibrationDataset",
     "CalibrationInput",
 ]

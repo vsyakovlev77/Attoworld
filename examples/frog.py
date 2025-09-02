@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.17"
+__generated_with = "0.15.2"
 app = marimo.App(width="medium")
 
 
@@ -19,7 +19,7 @@ async def _():
         path_to_attoworld = (
             mo.notebook_location()
             / "public"
-            / "attoworld-2025.0.38-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            / "attoworld-2025.0.39-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         micropip.uninstall("attoworld")
         await micropip.install(str(path_to_attoworld))
@@ -53,6 +53,7 @@ async def _():
 
     import attoworld as aw
     import numpy as np
+    import pathlib
 
     aw.plot.set_style("nick_dark")
     return (
@@ -62,6 +63,7 @@ async def _():
         is_in_web_notebook,
         mo,
         np,
+        pathlib,
         zipfile,
     )
 
@@ -81,7 +83,49 @@ def _(aw, mo):
 
 
 @app.cell
-def _(aw, bin_spatial_chirp_correction, calibration_selector, file_browser):
+def _(mo):
+    mode_selector = mo.ui.dropdown(options=["SHG-FROG", "XFROG"], label="FROG type:", value="SHG-FROG")
+    mode_selector
+    return (mode_selector,)
+
+
+@app.cell
+def _(mo, mode_selector):
+    xfrog_reference_file = mo.ui.file(filetypes=[".yml",".dat"], label="Select reference file")
+    xfrog_time_reverse_checkbox = mo.ui.checkbox(label="Reverse time")
+    if(mode_selector.value == "XFROG"):
+        mo.output.append(xfrog_reference_file)
+        mo.output.append(xfrog_time_reverse_checkbox)
+    return xfrog_reference_file, xfrog_time_reverse_checkbox
+
+
+@app.cell
+def _(
+    aw,
+    mo,
+    mode_selector,
+    np,
+    pathlib,
+    xfrog_reference_file,
+    xfrog_time_reverse_checkbox,
+):
+    if((mode_selector.value == "XFROG") and (xfrog_reference_file.name() is not None)):
+        mo.output.append(mo.md("### Loaded reference:"))
+        print(xfrog_reference_file.name())
+        _type = pathlib.Path(xfrog_reference_file.name()).suffix
+        if _type == ".yml":
+            xfrog_reference = aw.data.FrogData.load_yaml_bytestream(xfrog_reference_file.contents())
+            if xfrog_time_reverse_checkbox.value:
+                xfrog_reference.raw_reconstruction = np.flipud(xfrog_reference.raw_reconstruction)
+                xfrog_reference.pulse.wave = np.flipud(xfrog_reference.pulse.wave)
+                xfrog_reference.spectrum.spectrum = np.conj(xfrog_reference.spectrum.spectrum)
+            xfrog_reference.plot_all(figsize=(9,6))
+            aw.plot.showmo()
+    return (xfrog_reference,)
+
+
+@app.cell
+def _(aw, calibration_selector, file_browser):
     _path = file_browser.contents()
     if _path is not None:
         input_data = aw.data.read_dwc(file_or_path=_path, is_buffer=True)
@@ -90,8 +134,6 @@ def _(aw, bin_spatial_chirp_correction, calibration_selector, file_browser):
                 aw.spectrum.get_calibration_path() / calibration_selector.value
             )
             input_data = calibration.apply_to_spectrogram(input_data)
-        if bin_spatial_chirp_correction.value:
-            input_data.to_removed_spatial_chirp()
     else:
         input_data = None
     return (input_data,)
@@ -99,16 +141,31 @@ def _(aw, bin_spatial_chirp_correction, calibration_selector, file_browser):
 
 @app.cell
 def _(mo):
-    bin_size = mo.ui.number(label="size", value=96, step=2)
-    bin_dt = mo.ui.number(label="dt (fs)", value=3, step=0.1)
-    bin_f0 = mo.ui.number(label="f0 (THz)", value=740, step=1)
-    bin_offset = mo.ui.number(label="dark noise level", value=0.0002, step=1e-5)
-    bin_fblock = mo.ui.number(label="freq block avg.", value=16, step=1)
-    bin_tblock = mo.ui.number(label="time block avg.", value=1, step=1)
-    bin_median = mo.ui.checkbox(label="median blocking", value=False)
-    bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=False)
-    bin_button = mo.ui.run_button(label="bin")
-    bin_live = mo.ui.checkbox(label="live update")
+    bin_loaded_file = mo.ui.file(filetypes=[".yml"], label="Load settings from .yml")
+    bin_loaded_file
+    return (bin_loaded_file,)
+
+
+@app.cell
+def _(aw, bin_loaded_file):
+    _contents = bin_loaded_file.contents()
+    if _contents is not None:
+        loaded_settings = aw.data.FrogBinSettings.load_yaml_bytestream(_contents)
+    else:
+        loaded_settings = aw.data.FrogBinSettings(size=96,dt=3e-15,f0=740e12,dc_offset=0.0002,freq_binning=16,time_binning=2,median_binning=False,spatial_chirp_correction=False)
+    return (loaded_settings,)
+
+
+@app.cell
+def _(is_in_web_notebook, loaded_settings, mo):
+    bin_size = mo.ui.number(label="size", value=loaded_settings.size, step=2)
+    bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
+    bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=0.1)
+    bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
+    bin_fblock = mo.ui.number(label="freq block avg.", value=loaded_settings.freq_binning, step=1)
+    bin_tblock = mo.ui.number(label="time block avg.", value=loaded_settings.time_binning, step=1)
+    bin_median = mo.ui.checkbox(label="median blocking", value=loaded_settings.median_binning)
+    bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=loaded_settings.spatial_chirp_correction)
     mo.output.append(bin_size)
     mo.output.append(bin_dt)
     mo.output.append(bin_f0)
@@ -117,17 +174,17 @@ def _(mo):
     mo.output.append(bin_tblock)
     mo.output.append(bin_median)
     mo.output.append(bin_spatial_chirp_correction)
-    mo.output.append(bin_live)
-    mo.output.append(bin_button)
 
+    if not is_in_web_notebook:
+        bin_save_button = mo.ui.run_button(label="Save settings")
+        mo.output.append(bin_save_button)
     return (
-        bin_button,
         bin_dt,
         bin_f0,
         bin_fblock,
-        bin_live,
         bin_median,
         bin_offset,
+        bin_save_button,
         bin_size,
         bin_spatial_chirp_correction,
         bin_tblock,
@@ -137,38 +194,51 @@ def _(mo):
 @app.cell
 def _(
     aw,
-    bin_button,
     bin_dt,
     bin_f0,
     bin_fblock,
-    bin_live,
     bin_median,
     bin_offset,
     bin_size,
+    bin_spatial_chirp_correction,
     bin_tblock,
-    input_data,
-    mo,
 ):
-    if not bin_live.value:
-        mo.stop(not bin_button.value)
+    bin_settings = aw.data.FrogBinSettings(
+        size=int(bin_size.value),
+        dt=bin_dt.value * 1e-15,
+        f0=bin_f0.value * 1e12,
+        dc_offset=bin_offset.value,
+        time_binning=int(bin_tblock.value),
+        freq_binning=int(bin_fblock.value),
+        median_binning=bool(bin_median.value),
+        spatial_chirp_correction=bool(bin_spatial_chirp_correction.value),
+    )
+    return (bin_settings,)
+
+
+@app.cell
+def _(
+    aw,
+    bin_settings,
+    display_download_link_from_file,
+    input_data,
+    is_in_web_notebook,
+):
+    # if not bin_live.value:
+    #     mo.stop(not bin_button.value)
     if input_data is not None:
-        if bin_median.value:
-            _method = "median"
-        else:
-            _method = "mean"
-        frog_data = (
-            input_data.to_block_binned(
-                int(bin_fblock.value), int(bin_tblock.value), method=_method
-            )
-            .to_binned(
-                dim=int(bin_size.value),
-                dt=float(bin_dt.value * 1e-15),
-                f0=float(bin_f0.value * 1e12),
-            )
-            .to_per_frequency_dc_removed(extra_offset=float(bin_offset.value))
-        )
+        frog_data = input_data.to_bin_pipeline_result(bin_settings)
         frog_data.plot_log()
         aw.plot.showmo()
+
+        if is_in_web_notebook:
+            bin_settings.save_yaml("bin_settings.yml")
+            display_download_link_from_file(
+                path="bin_settings.yml",
+                output_name="bin_settings.yml",
+                mime_type="text/yaml",
+            )
+
     else:
         frog_data = None
     return (frog_data,)
@@ -191,7 +261,6 @@ def _(is_in_web_notebook, mo):
     if not is_in_web_notebook:
         mo.output.append(save_button)
         mo.output.append(save_plot_button)
-
     return (
         recon_followups,
         recon_trial_length,
@@ -215,19 +284,31 @@ def _(
     aw,
     frog_data,
     mo,
+    mode_selector,
     recon_followups,
     recon_trial_length,
     recon_trials,
     reconstruct_button,
+    xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
-        result = aw.wave.reconstruct_shg_frog(
-            measurement=frog_data,
-            repeats=int(recon_trials.value),
-            test_iterations=int(recon_trial_length.value),
-            polish_iterations=int(recon_followups.value),
-        )
+        if (mode_selector.value == "XFROG"):
+            result = aw.wave.reconstruct_xfrog(
+                measurement=frog_data,
+                gate=xfrog_reference,
+                repeats=int(recon_trials.value),
+                test_iterations=int(recon_trial_length.value),
+                polish_iterations=int(recon_followups.value),
+            )
+        else:
+            result = aw.wave.reconstruct_shg_frog(
+                measurement=frog_data,
+                repeats=int(recon_trials.value),
+                test_iterations=int(recon_trial_length.value),
+                polish_iterations=int(recon_followups.value),
+            )
+
     else:
         result = None
     return (result,)
@@ -239,17 +320,13 @@ def _(
     display_download_link_from_file,
     file_base,
     is_in_web_notebook,
-    np,
     result,
     zipfile,
 ):
     if result is not None:
-        spec = result.spectrum.to_intensity_spectrum()
-        indices = np.where(spec.spectrum / np.max(spec.spectrum) > 3e-3)[0]
-        wl_nm = spec.wavelength_nm()
         plot = result.plot_all(
             figsize=(9, 6),
-            wavelength_xlims=(wl_nm[indices[-1]], wl_nm[indices[0]]),
+            wavelength_autoscale=1e-3
         )
         aw.plot.showmo()
 
@@ -260,18 +337,19 @@ def _(
             )
 
             result.save(file_base.value)
-            result.save_yaml(f"{file_base.value}.yaml")
+            result.save_yaml(f"{file_base.value}.yml")
             with zipfile.ZipFile(f"{file_base.value}.zip", "w") as zip:
                 zip.write(f"{file_base.value}.A.dat")
                 zip.write(f"{file_base.value}.Arecon.dat")
                 zip.write(f"{file_base.value}.Ek.dat")
                 zip.write(f"{file_base.value}.Speck.dat")
-                zip.write(f"{file_base.value}.yaml")
+                zip.write(f"{file_base.value}.yml")
             display_download_link_from_file(
                 f"{file_base.value}.zip",
                 output_name=f"{file_base.value}.zip",
                 mime_type="application/zip",
             )
+            display_download_link_from_file(f"{file_base.value}.yml",output_name=f"{file_base.value}.yml",mime_type="text/yaml")
     return (plot,)
 
 
@@ -285,7 +363,7 @@ def _(filedialog, is_in_web_notebook, mo, result, save_button):
 
         if (_file_path is not None) and (result is not None) and (_file_path != ""):
             result.save(_file_path)
-            result.save_yaml(_file_path + ".yaml")
+            result.save_yaml(_file_path + ".yml")
     return
 
 
@@ -299,6 +377,19 @@ def _(filedialog, is_in_web_notebook, mo, plot, result, save_plot_button):
 
         if _file_path is not None and result is not None:
             plot.savefig(_file_path)
+    return
+
+
+@app.cell
+def _(bin_save_button, bin_settings, filedialog, is_in_web_notebook, mo):
+    if not is_in_web_notebook:
+        mo.stop(not bin_save_button.value)
+        _file_path = filedialog.asksaveasfilename(
+            title="Save File", filetypes=[("YAML files", "*.yml")]
+        )
+
+        if _file_path is not None and bin_settings is not None:
+            bin_settings.save_yaml(_file_path)
     return
 
 
