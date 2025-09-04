@@ -7,22 +7,13 @@ app = marimo.App(width="medium")
 @app.cell
 async def _():
     import marimo as mo
-
     # check if running in a browser, install attoworld from local copy
     import sys
-
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
         import os
-
-        path_to_attoworld = (
-            mo.notebook_location()
-            / "public"
-            / "attoworld-2025.0.39-cp312-cp312-emscripten_3_1_58_wasm32.whl"
-        )
-        micropip.uninstall("attoworld")
-        await micropip.install(str(path_to_attoworld))
+        await micropip.install("https://nickkarpowicz.github.io/wheels/attoworld-2025.0.40-cp312-cp312-emscripten_3_1_58_wasm32.whl")
 
         import base64
         import zipfile
@@ -70,6 +61,19 @@ async def _():
 
 @app.cell
 def _(mo):
+    mo.md(
+        r"""
+    # FROG reconstruction
+
+    ---
+    #### Select your FROG file:
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
     file_browser = mo.ui.file(filetypes=[".dwc"], label="Select .dwc file")
     file_browser
     return (file_browser,)
@@ -84,9 +88,89 @@ def _(aw, mo):
 
 @app.cell
 def _(mo):
-    mode_selector = mo.ui.dropdown(options=["SHG-FROG", "XFROG"], label="FROG type:", value="SHG-FROG")
+    mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ---
+    #### Optional spectral constraint:
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    spectral_constraint_file = mo.ui.file(label="Spectral contstraint file")
+    spectral_constraint_file
+    return (spectral_constraint_file,)
+
+
+@app.cell
+def _(mo, spectral_constraint_file):
+    spectral_constraint_format = mo.ui.dropdown(options=["Columns", "Text with headers"], value="Text with headers")
+    spectral_constraint_data = spectral_constraint_file.contents()
+    if spectral_constraint_data is not None:
+        mo.output.append(spectral_constraint_format)
+    return spectral_constraint_data, spectral_constraint_format
+
+
+@app.cell
+def _(mo, spectral_constraint_data, spectral_constraint_format):
+    spectral_constraint_wavelength_header = mo.ui.text(label="Wavelength column key:", value="wavelength (nm)")
+    spectral_constraint_wavelength_multiplier = mo.ui.number(label="Wavelength multiplier:", value=1e9)
+    spectral_constraint_intensity_header = mo.ui.text(label="Intensity column key:", value="intensity (a.u.)")
+    spectral_constraint_skip_lines = mo.ui.number(value=0, label="Header lines:")
+    if spectral_constraint_data is not None:
+        if spectral_constraint_format.value == "Text with headers":
+            mo.output.append(spectral_constraint_wavelength_header)
+            mo.output.append(spectral_constraint_wavelength_multiplier)
+            mo.output.append(spectral_constraint_intensity_header)
+        if spectral_constraint_format.value == "Columns":
+            mo.output.append(spectral_constraint_skip_lines)
+    return (
+        spectral_constraint_intensity_header,
+        spectral_constraint_skip_lines,
+        spectral_constraint_wavelength_header,
+        spectral_constraint_wavelength_multiplier,
+    )
+
+
+@app.cell
+def _(
+    aw,
+    mo,
+    spectral_constraint_data,
+    spectral_constraint_format,
+    spectral_constraint_intensity_header,
+    spectral_constraint_skip_lines,
+    spectral_constraint_wavelength_header,
+    spectral_constraint_wavelength_multiplier,
+):
+    spectral_constraint = None
+    if spectral_constraint_data is not None:
+        match spectral_constraint_format.value:
+            case "Columns":
+                spectral_constraint = aw.data.load_mean_spectrum_from_scarab(
+                    spectral_constraint_data.decode("utf-8"), is_bytes=True, header_size=spectral_constraint_skip_lines.value
+                )
+            case "Text with headers":
+                spectral_constraint = aw.data.load_spectrum_from_text(
+                    filename=spectral_constraint_data,
+                    wavelength_multiplier=1.0
+                    / spectral_constraint_wavelength_multiplier.value,
+                    wavelength_field=spectral_constraint_wavelength_header.value,
+                    spectrum_field=spectral_constraint_intensity_header.value,
+                )
+        mo.output.append(mo.md("### Loaded spectral constraint:"))
+        spectral_constraint.plot_with_group_delay()
+        aw.plot.showmo()
+    return (spectral_constraint,)
 
 
 @app.cell
@@ -111,7 +195,6 @@ def _(
 ):
     if((mode_selector.value == "XFROG") and (xfrog_reference_file.name() is not None)):
         mo.output.append(mo.md("### Loaded reference:"))
-        print(xfrog_reference_file.name())
         _type = pathlib.Path(xfrog_reference_file.name()).suffix
         if _type == ".yml":
             xfrog_reference = aw.data.FrogData.load_yaml_bytestream(xfrog_reference_file.contents())
@@ -141,6 +224,17 @@ def _(aw, calibration_selector, file_browser):
 
 @app.cell
 def _(mo):
+    mo.md(
+        r"""
+    ---
+    #### Bin onto evenly-spaced space/time grid:
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
     bin_loaded_file = mo.ui.file(filetypes=[".yml"], label="Load settings from .yml")
     bin_loaded_file
     return (bin_loaded_file,)
@@ -152,7 +246,18 @@ def _(aw, bin_loaded_file):
     if _contents is not None:
         loaded_settings = aw.data.FrogBinSettings.load_yaml_bytestream(_contents)
     else:
-        loaded_settings = aw.data.FrogBinSettings(size=96,dt=3e-15,f0=740e12,dc_offset=0.0002,freq_binning=16,time_binning=2,median_binning=False,spatial_chirp_correction=False)
+        loaded_settings = aw.data.FrogBinSettings(
+            size=96,
+            dt=3e-15,
+            t0=0.0,
+            auto_t0=True,
+            f0=740e12,
+            dc_offset=0.0002,
+            freq_binning=1,
+            time_binning=1,
+            median_binning=False,
+            spatial_chirp_correction=False,
+        )
     return (loaded_settings,)
 
 
@@ -160,14 +265,18 @@ def _(aw, bin_loaded_file):
 def _(is_in_web_notebook, loaded_settings, mo):
     bin_size = mo.ui.number(label="size", value=loaded_settings.size, step=2)
     bin_dt = mo.ui.number(label="dt (fs)", value=loaded_settings.dt*1e15, step=0.1)
+    bin_t0 = mo.ui.number(label="t0 (fs)", value=loaded_settings.t0 * 1e-15, step=0.1)
+    bin_t0_auto = mo.ui.checkbox(label="Auto time centering", value=loaded_settings.auto_t0)
     bin_f0 = mo.ui.number(label="f0 (THz)", value=loaded_settings.f0*1e-12, step=0.1)
     bin_offset = mo.ui.number(label="dark noise level", value=loaded_settings.dc_offset, step=1e-5)
-    bin_fblock = mo.ui.number(label="freq block avg.", value=loaded_settings.freq_binning, step=1)
-    bin_tblock = mo.ui.number(label="time block avg.", value=loaded_settings.time_binning, step=1)
+    bin_fblock = mo.ui.number(label="freq block avg.", start=1, value=loaded_settings.freq_binning, step=1)
+    bin_tblock = mo.ui.number(label="time block avg.", start=1, value=loaded_settings.time_binning, step=1)
     bin_median = mo.ui.checkbox(label="median blocking", value=loaded_settings.median_binning)
     bin_spatial_chirp_correction = mo.ui.checkbox(label="correct spatial chirp", value=loaded_settings.spatial_chirp_correction)
     mo.output.append(bin_size)
     mo.output.append(bin_dt)
+    mo.output.append(bin_t0)
+    mo.output.append(bin_t0_auto)
     mo.output.append(bin_f0)
     mo.output.append(bin_offset)
     mo.output.append(bin_fblock)
@@ -187,6 +296,8 @@ def _(is_in_web_notebook, loaded_settings, mo):
         bin_save_button,
         bin_size,
         bin_spatial_chirp_correction,
+        bin_t0,
+        bin_t0_auto,
         bin_tblock,
     )
 
@@ -201,11 +312,19 @@ def _(
     bin_offset,
     bin_size,
     bin_spatial_chirp_correction,
+    bin_t0,
+    bin_t0_auto,
     bin_tblock,
 ):
+    if bin_t0_auto.value:
+        _t0 = None
+    else:
+        _t0 = bin_t0.value * 1e-15
     bin_settings = aw.data.FrogBinSettings(
         size=int(bin_size.value),
         dt=bin_dt.value * 1e-15,
+        t0=bin_t0.value * 1e-15,
+        auto_t0=bin_t0_auto.value,
         f0=bin_f0.value * 1e12,
         dc_offset=bin_offset.value,
         time_binning=int(bin_tblock.value),
@@ -245,6 +364,17 @@ def _(
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ---
+    #### Run the reconstruction routine:
+    """
+    )
+    return
+
+
+@app.cell
 def _(is_in_web_notebook, mo):
     recon_trials = mo.ui.number(value=8, label="Initial guesses")
     recon_trial_length = mo.ui.number(value=64, label="Trial iterations")
@@ -252,7 +382,6 @@ def _(is_in_web_notebook, mo):
     reconstruct_button = mo.ui.run_button(label="reconstruct")
     save_button = mo.ui.run_button(label="save")
     save_plot_button = mo.ui.run_button(label="save plot")
-
     mo.output.append(recon_trials)
     mo.output.append(recon_trial_length)
     mo.output.append(recon_followups)
@@ -289,29 +418,41 @@ def _(
     recon_trial_length,
     recon_trials,
     reconstruct_button,
+    spectral_constraint,
     xfrog_reference,
 ):
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
-        if (mode_selector.value == "XFROG"):
-            result = aw.wave.reconstruct_xfrog(
-                measurement=frog_data,
-                gate=xfrog_reference,
-                repeats=int(recon_trials.value),
-                test_iterations=int(recon_trial_length.value),
-                polish_iterations=int(recon_followups.value),
-            )
-        else:
-            result = aw.wave.reconstruct_shg_frog(
-                measurement=frog_data,
-                repeats=int(recon_trials.value),
-                test_iterations=int(recon_trial_length.value),
-                polish_iterations=int(recon_followups.value),
-            )
+        match mode_selector.value:
+            case "XFROG":
+                result, _ = aw.wave.reconstruct_xfrog(
+                    measurement=frog_data,
+                    gate=xfrog_reference,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                )
+            case "BlindFROG":
+                result, result_gate = aw.wave.reconstruct_blindfrog(
+                    measurement=frog_data,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                )
+            case _:
+                result = aw.wave.reconstruct_frog(
+                    measurement=frog_data,
+                    repeats=int(recon_trials.value),
+                    test_iterations=int(recon_trial_length.value),
+                    polish_iterations=int(recon_followups.value),
+                    nonlinearity=mode_selector.value,
+                    spectrum=spectral_constraint,
+                )
+
 
     else:
         result = None
-    return (result,)
+    return result, result_gate
 
 
 @app.cell
@@ -320,7 +461,10 @@ def _(
     display_download_link_from_file,
     file_base,
     is_in_web_notebook,
+    mo,
+    mode_selector,
     result,
+    result_gate,
     zipfile,
 ):
     if result is not None:
@@ -329,6 +473,13 @@ def _(
             wavelength_autoscale=1e-3
         )
         aw.plot.showmo()
+        if mode_selector.value == "BlindFROG":
+            mo.output.append(mo.md("### Gate"))
+            plot_gate = result_gate.plot_all(
+                figsize=(9, 6),
+                wavelength_autoscale=1e-3
+            )
+            aw.plot.showmo()
 
         if is_in_web_notebook:
             plot.savefig("temp.svg")

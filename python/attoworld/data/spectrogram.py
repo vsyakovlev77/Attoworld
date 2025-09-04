@@ -24,6 +24,8 @@ class FrogBinSettings:
     size: int
     dt: float
     f0: float
+    t0: float
+    auto_t0: bool
     dc_offset: float
     time_binning: int
     freq_binning: int
@@ -242,33 +244,47 @@ class Spectrogram:
         else:
             method = "mean"
 
+        t0 = settings.t0
+        if settings.auto_t0:
+            t0 = None
+
         def maybe_correct_chirp(instance, apply: bool):
             return instance.to_removed_spatial_chirp() if apply else instance
 
         return (
             maybe_correct_chirp(self, settings.spatial_chirp_correction)
             .to_block_binned(settings.freq_binning, settings.time_binning, method)
-            .to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0)
+            .to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=t0)
             .to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
         )
 
-    def plot(self, ax: Optional[Axes] = None):
+    def plot(self, ax: Optional[Axes] = None, take_sqrt: bool = True):
         """Plot the spectrogram.
 
         Args:
             ax: optionally plot onto a pre-existing matplotlib Axes
+            take_sqrt (bool): plot the square root of the data
 
         """
         if ax is None:
             fig, ax = plt.subplots()
         else:
             fig = ax.get_figure()
-        a = ax.pcolormesh(
-            1e15 * self.time,
-            1e-12 * self.freq,
-            self.data / np.max(self.data[:]),
-            rasterized=True,
-        )
+
+        if take_sqrt:
+            a = ax.pcolormesh(
+                1e15 * self.time,
+                1e-12 * self.freq,
+                np.sqrt(self.data / np.max(self.data[:])),
+                rasterized=True,
+            )
+        else:
+            a = ax.pcolormesh(
+                1e15 * self.time,
+                1e-12 * self.freq,
+                self.data / np.max(self.data[:]),
+                rasterized=True,
+            )
         ax.set_xlabel("Time (fs)")
         ax.set_ylabel("Frequency (THz)")
         plt.colorbar(a)
