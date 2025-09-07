@@ -13,7 +13,7 @@ async def _():
     if is_in_web_notebook:
         import micropip
         import os
-        await micropip.install("https://nickkarpowicz.github.io/wheels/attoworld-2025.0.40-cp312-cp312-emscripten_3_1_58_wasm32.whl")
+        await micropip.install("https://nickkarpowicz.github.io/wheels/attoworld-2025.0.41-cp312-cp312-emscripten_3_1_58_wasm32.whl")
 
         import base64
         import zipfile
@@ -178,6 +178,8 @@ def _(mo, mode_selector):
     xfrog_reference_file = mo.ui.file(filetypes=[".yml",".dat"], label="Select reference file")
     xfrog_time_reverse_checkbox = mo.ui.checkbox(label="Reverse time")
     if(mode_selector.value == "XFROG"):
+        mo.output.append(mo.md("---"))
+        mo.output.append(mo.md("#### XFROG Reference:"))
         mo.output.append(xfrog_reference_file)
         mo.output.append(xfrog_time_reverse_checkbox)
     return xfrog_reference_file, xfrog_time_reverse_checkbox
@@ -204,6 +206,8 @@ def _(
                 xfrog_reference.spectrum.spectrum = np.conj(xfrog_reference.spectrum.spectrum)
             xfrog_reference.plot_all(figsize=(9,6))
             aw.plot.showmo()
+    else:
+        xfrog_reference=None
     return (xfrog_reference,)
 
 
@@ -424,35 +428,28 @@ def _(
     mo.stop(not reconstruct_button.value)
     if frog_data is not None:
         match mode_selector.value:
+            case "SHG":
+                frog_type = aw.attoworld_rs.FrogType.Shg
+            case "THG":
+                frog_type = aw.attoworld_rs.FrogType.Thg
+            case "Kerr":
+                frog_type = aw.attoworld_rs.FrogType.Kerr
             case "XFROG":
-                result, _ = aw.wave.reconstruct_xfrog(
-                    measurement=frog_data,
-                    gate=xfrog_reference,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                )
+                frog_type = aw.attoworld_rs.FrogType.Xfrog
             case "BlindFROG":
-                result, result_gate = aw.wave.reconstruct_blindfrog(
-                    measurement=frog_data,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                )
-            case _:
-                result = aw.wave.reconstruct_frog(
-                    measurement=frog_data,
-                    repeats=int(recon_trials.value),
-                    test_iterations=int(recon_trial_length.value),
-                    polish_iterations=int(recon_followups.value),
-                    nonlinearity=mode_selector.value,
-                    spectrum=spectral_constraint,
-                )
-
-
+                frog_type = aw.attoworld_rs.FrogType.Blindfrog
+        result, gate_result = aw.wave.reconstruct_frog(
+            measurement=frog_data,
+            repeats=int(recon_trials.value),
+            test_iterations=int(recon_trial_length.value),
+            polish_iterations=int(recon_followups.value),
+            frog_type=frog_type,
+            spectrum=spectral_constraint,
+            xfrog_gate = xfrog_reference
+        )
     else:
         result = None
-    return result, result_gate
+    return (result,)
 
 
 @app.cell

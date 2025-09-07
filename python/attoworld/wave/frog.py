@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..attoworld_rs import FrogType, frog_iteration, rust_frog
 from ..data import ComplexEnvelope, FrogData, IntensitySpectrum, Spectrogram
 from ..numeric import find_maximum_location, interpolate
 
@@ -87,7 +88,6 @@ def generate_spectrogram(Et, Gt):
 
     return np.fft.fft(spectrogram_timetime, axis=0)
 
-
 def blank_roll(data: np.ndarray, step):
     """np.roll, but pulse entering from other side set to zero."""
     rolled = np.roll(data, step)
@@ -114,6 +114,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
     new_sg = meas_sqrt * np.exp(1j * np.angle(new_sg))
     new_sg = np.fft.ifft(new_sg, axis=0)
 
+    field = np.mean(new_sg, axis=1)
     for _i in range(len(Et)):
         new_sg[_i, :] = blank_roll(new_sg[_i, :], _i - int(Et.shape[0] / 2))
 
@@ -123,7 +124,7 @@ def apply_iteration(Et, Gt, meas_sqrt):
     # gate = v[0, :].squeeze()
 
     # Simpler extraction
-    field = np.mean(new_sg, axis=1)
+
     gate = np.mean(new_sg, axis=0)
 
     return field, gate
@@ -148,15 +149,22 @@ def apply_spectral_constraint(field, spectrum):
         return np.fft.ifft(spectrum * np.exp(1j * np.angle(np.fft.fft(field))))
     return field
 
-def guess_from_pulse_and_gate(pulse, gate, nonlinearity: str = "SHG", spectrum = None):
+
+def guess_from_pulse_and_gate(pulse, gate, nonlinearity: str = "SHG", spectrum=None):
     """Use the retrieved gate and pulse to generate a new guess of the pulse."""
     match nonlinearity:
         case "SHG":
-            return shift_to_zero_and_normalize(apply_spectral_constraint(pulse + gate, spectrum))
+            return shift_to_zero_and_normalize(
+                apply_spectral_constraint(pulse + gate, spectrum)
+            )
         case "THG":
-            return shift_to_zero_and_normalize(apply_spectral_constraint(pulse + np.conj(pulse) * gate, spectrum))
+            return shift_to_zero_and_normalize(
+                apply_spectral_constraint(pulse + np.conj(pulse) * gate, spectrum)
+            )
         case "Kerr":
-            return shift_to_zero_and_normalize(apply_spectral_constraint(pulse, spectrum))
+            return shift_to_zero_and_normalize(
+                apply_spectral_constraint(pulse, spectrum)
+            )
 
 
 def gate_from_pulse(pulse, nonlinearity: str = "SHG"):
@@ -175,7 +183,7 @@ def reconstruct_frog_core(
     guess=None,
     max_iterations: int = 200,
     nonlinearity: str = "SHG",
-    spectrum = None
+    spectrum=None,
 ):
     """Run the core FROG loop.
 
@@ -202,7 +210,9 @@ def reconstruct_frog_core(
     best = guess
     best_error = calculate_g_error(measurement_norm, best)
     for _i in range(max_iterations):
-        guess, gate = apply_iteration(guess, gate, measurement_sg_sqrt)
+        guess, gate = frog_iteration(
+            np.array(guess), np.array(gate), np.array(measurement_sg_sqrt)
+        )
         guess = guess_from_pulse_and_gate(guess, gate, nonlinearity, spectrum)
         guess = fix_aliasing(guess)
         gate = gate_from_pulse(guess, nonlinearity)
@@ -338,8 +348,9 @@ def reconstruct_frog(
     test_iterations: int = 100,
     polish_iterations=5000,
     repeats: int = 256,
-    nonlinearity: str = "SHG",
-    spectrum: IntensitySpectrum | None = None
+    frog_type: FrogType = FrogType.Shg,
+    spectrum: IntensitySpectrum | None = None,
+    xfrog_gate: FrogData | None = None
 ):
     """Run the core FROG loop several times and pick the best result.
 
@@ -348,8 +359,9 @@ def reconstruct_frog(
         test_iterations (int): number of iterations for the multiple tests
         polish_iterations (int): number of extra iterations to apply to the winner
         repeats (int): number of different initial guesses to try
-        nonlinearity (str): type of nonlinear effect. Options: SHG, THG, and Kerr
+        frog_type (FrogType): type of nonlinear effect. Options: SHG, THG, and Kerr
         spectrum (IntensitySpectrum): optional spectrum to use to constrain the spectrum of the retrieved pulse
+        xfrog_gate (FrogData): gate to use for xfrog
     Returns:
     FrogData: the completed reconstruction
 
@@ -360,46 +372,68 @@ def reconstruct_frog(
     sqrt_sg /= np.max(sqrt_sg)
     measurement_norm = sqrt_sg**2
     measurement_norm = measurement_norm / np.linalg.norm(measurement_norm)
-
-    match nonlinearity:
-        case "SHG":
+    measured_gate = None
+    match frog_type:
+        case FrogType.Shg:
             f0 = float(np.mean(measurement.freq) / 2.0)
-        case "THG":
+        case FrogType.Thg:
             f0 = float(np.mean(measurement.freq) / 3.0)
-        case "Kerr" | _:
+        case FrogType.Xfrog:
+            if xfrog_gate is not None:
+                f0 = float(np.mean(measurement.freq) - xfrog_gate.f0)
+                measured_gate = generate_gate_from_frog(xfrog_gate, measurement)
+            else:
+                raise ValueError("Must provide a measured gate pulse for XFROG, using the xfrog_gate input parameter.")
+        case FrogType.Kerr | _:
             f0 = float(np.mean(measurement.freq))
 
     if spectrum is not None:
         spec_freq, spec = spectrum.get_frequency_spectrum()
-        spectrum = np.sqrt(interpolate(measurement.freq - np.mean(measurement.freq) + f0, spec_freq, spec, inputs_are_sorted=False))
-    results = np.zeros((sqrt_sg.shape[0], repeats), dtype=np.complex128)
-    errors = np.zeros(repeats, dtype=float)
-    for _i in range(repeats):
-        results[:, _i] = reconstruct_frog_core(
-            sqrt_sg, max_iterations=test_iterations, nonlinearity=nonlinearity, spectrum=spectrum
+        spectrum = np.sqrt(
+            interpolate(
+                measurement.freq - np.mean(measurement.freq) + f0,
+                spec_freq,
+                spec,
+                inputs_are_sorted=False,
+            )
         )
-        errors[_i] = calculate_g_error(measurement_norm, results[:, _i])
-    min_error_index = np.argmin(errors)
-    result = reconstruct_frog_core(
-        sqrt_sg,
-        guess=results[:, min_error_index],
-        max_iterations=polish_iterations,
-        nonlinearity=nonlinearity,
-        spectrum=spectrum
+
+    (pulse_out, gate_out, g_error) = rust_frog(
+        np.array(sqrt_sg),
+        None,
+        trial_pulses=repeats,
+        iterations=test_iterations,
+        finishing_iterations=polish_iterations,
+        frog_type=frog_type,
+        spectrum=spectrum,
+        measured_gate=measured_gate,
     )
     nyquist_factor = int(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
     )
 
+    pulse_out = shift_to_zero_and_normalize(pulse_out)
+    gate_out = shift_to_zero_and_normalize(gate_out)
 
-
-    return bundle_frog_reconstruction(
+    result = bundle_frog_reconstruction(
         t=measurement.time,
-        result=result,
+        result=pulse_out,
         measurement=sqrt_sg,
         f0=f0,
         interpolation_factor=nyquist_factor,
+        gate = gate_out
     )
+
+    gate_result = bundle_frog_reconstruction(
+        t=measurement.time,
+        result=gate_out,
+        measurement=sqrt_sg,
+        f0=f0,
+        interpolation_factor=nyquist_factor,
+        gate = gate_out
+    )
+
+    return result, gate_result
 
 
 def reconstruct_xfrog(
