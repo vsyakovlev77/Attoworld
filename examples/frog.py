@@ -1,3 +1,9 @@
+# /// script
+# [tool.marimo.display]
+# theme = "dark"
+# ///
+
+
 import marimo
 
 __generated_with = "0.15.2"
@@ -8,9 +14,8 @@ app = marimo.App(width="medium")
 async def _():
     import marimo as mo
 
-    # check if running in a browser, install attoworld from local copy
+    # check if running in a browser for extra setup
     import sys
-
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
@@ -19,7 +24,6 @@ async def _():
         await micropip.install(
             "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.41-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
-    
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
         ):
@@ -437,19 +441,14 @@ def _(
     mode_selector,
     result,
     result_gate,
-    zipfile,
 ):
     if result is not None:
-        plot = result.plot_all(
-            figsize=(9, 6),
-            wavelength_autoscale=1e-3
-        )
+        plot = result.plot_all(figsize=(9, 6), wavelength_autoscale=1e-3)
         aw.plot.showmo()
         if mode_selector.value == "BlindFROG":
             mo.output.append(mo.md("### Gate"))
             plot_gate = result_gate.plot_all(
-                figsize=(9, 6),
-                wavelength_autoscale=1e-3
+                figsize=(9, 6), wavelength_autoscale=1e-3
             )
             aw.plot.showmo()
 
@@ -458,22 +457,44 @@ def _(
             display_download_link_from_file(
                 "temp.svg", output_name=f"{file_base.value}.svg"
             )
-
-            result.save(file_base.value)
-            result.save_yaml(f"{file_base.value}.yml")
-            with zipfile.ZipFile(f"{file_base.value}.zip", "w") as zip:
-                zip.write(f"{file_base.value}.A.dat")
-                zip.write(f"{file_base.value}.Arecon.dat")
-                zip.write(f"{file_base.value}.Ek.dat")
-                zip.write(f"{file_base.value}.Speck.dat")
-                zip.write(f"{file_base.value}.yml")
-            display_download_link_from_file(
-                f"{file_base.value}.zip",
-                output_name=f"{file_base.value}.zip",
-                mime_type="application/zip",
-            )
-            display_download_link_from_file(f"{file_base.value}.yml",output_name=f"{file_base.value}.yml",mime_type="text/yaml")
     return (plot,)
+
+
+@app.cell
+def _(display_download_link_from_file, file_base, is_in_web_notebook, result):
+    if (result is not None) and is_in_web_notebook:
+        result.save_yaml(f"{file_base.value}.yml")
+        display_download_link_from_file(
+            f"{file_base.value}.yml",
+            output_name=f"{file_base.value}.yml",
+            mime_type="text/yaml",
+        )
+    return
+
+
+@app.cell
+def _(
+    display_download_link_from_file,
+    file_base,
+    is_in_web_notebook,
+    result,
+    zipfile,
+):
+    if (result is not None) and is_in_web_notebook:
+        result.save(file_base.value)
+        with zipfile.ZipFile(f"{file_base.value}.zip", "w") as zip:
+            zip.write(f"{file_base.value}.A.dat")
+            zip.write(f"{file_base.value}.Arecon.dat")
+            zip.write(f"{file_base.value}.Ek.dat")
+            zip.write(f"{file_base.value}.Speck.dat")
+            zip.write(f"{file_base.value}.yml")
+            zip.write(f"{file_base.value}.svg")
+        display_download_link_from_file(
+            f"{file_base.value}.zip",
+            output_name=f"{file_base.value}.zip",
+            mime_type="application/zip",
+        )
+    return
 
 
 @app.cell
