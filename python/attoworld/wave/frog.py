@@ -342,7 +342,6 @@ def fix_aliasing(result):
         return np.fft.ifft(np.fft.fftshift(np.fft.fft(result)))
     return result
 
-
 def reconstruct_frog(
     measurement: Spectrogram,
     test_iterations: int = 100,
@@ -389,7 +388,7 @@ def reconstruct_frog(
 
     if spectrum is not None:
         spec_freq, spec = spectrum.get_frequency_spectrum()
-        spectrum = np.sqrt(
+        spectral_constraint = np.sqrt(
             interpolate(
                 measurement.freq - np.mean(measurement.freq) + f0,
                 spec_freq,
@@ -397,6 +396,18 @@ def reconstruct_frog(
                 inputs_are_sorted=False,
             )
         )
+        spectral_constraint = np.array(np.fft.fftshift(spectral_constraint))
+
+        #Correct marginal for SHG-FROG if a spectral constraint is applied
+        if frog_type == FrogType.Shg:
+            spectrogram_marginal = np.sum(sqrt_sg**2, axis=1)
+            spectrum_autocorrelation = np.abs(np.fft.ifft(np.fft.fft(spectral_constraint)**2))
+            wiener_factor = (1.0/spectrogram_marginal) * (1.0 / (1.0 + 1.0/(spectrogram_marginal**2 * 1000.0)))
+            amp_factor = np.where(spectrogram_marginal > 0.0, wiener_factor * spectrum_autocorrelation, 0.0)
+            sqrt_sg = np.array(np.sqrt(amp_factor[:, np.newaxis] * sqrt_sg**2), dtype=float)
+
+    else:
+        spectral_constraint = None
 
     (pulse_out, gate_out, g_error) = rust_frog(
         np.array(sqrt_sg),
@@ -405,15 +416,16 @@ def reconstruct_frog(
         iterations=test_iterations,
         finishing_iterations=polish_iterations,
         frog_type=frog_type,
-        spectrum=spectrum,
+        spectrum=spectral_constraint,
         measured_gate=measured_gate,
     )
     nyquist_factor = int(
         np.ceil(2 * (measurement.time[1] - measurement.time[0]) * measurement.freq[-1])
     )
 
-    pulse_out = shift_to_zero_and_normalize(pulse_out)
-    gate_out = shift_to_zero_and_normalize(gate_out)
+    if (frog_type != FrogType.Xfrog) and (frog_type != FrogType.Blindfrog):
+        pulse_out = shift_to_zero_and_normalize(pulse_out)
+        gate_out = shift_to_zero_and_normalize(gate_out)
 
     result = bundle_frog_reconstruction(
         t=measurement.time,

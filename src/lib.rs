@@ -798,7 +798,7 @@ fn attoworld_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()>
         let mut alloc = FrogAllocation::new(
             measurement_sg_sqrt,
             guess.map(|x| x.to_vec()),
-            None,
+            measured_gate.map(|x| x.to_vec()),
             frog_type.clone(),
             spectrum.map(|x| x.to_vec()),
             measured_gate.map(|x| x.to_vec()),

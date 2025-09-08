@@ -3,7 +3,6 @@
 # theme = "dark"
 # ///
 
-
 import marimo
 
 __generated_with = "0.15.2"
@@ -22,7 +21,7 @@ async def _():
         import os
         import zipfile
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.41-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.42-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -87,38 +86,6 @@ def _(mo):
     mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
-
-
-@app.cell
-def _(
-    aw,
-    mo,
-    spectral_constraint_data,
-    spectral_constraint_format,
-    spectral_constraint_intensity_header,
-    spectral_constraint_skip_lines,
-    spectral_constraint_wavelength_header,
-    spectral_constraint_wavelength_multiplier,
-):
-    spectral_constraint = None
-    if spectral_constraint_data is not None:
-        match spectral_constraint_format.value:
-            case "Columns":
-                spectral_constraint = aw.data.load_mean_spectrum_from_scarab(
-                    spectral_constraint_data.decode("utf-8"), is_bytes=True, header_size=spectral_constraint_skip_lines.value
-                )
-            case "Text with headers":
-                spectral_constraint = aw.data.load_spectrum_from_text(
-                    filename=spectral_constraint_data,
-                    wavelength_multiplier=1.0
-                    / spectral_constraint_wavelength_multiplier.value,
-                    wavelength_field=spectral_constraint_wavelength_header.value,
-                    spectrum_field=spectral_constraint_intensity_header.value,
-                )
-        mo.output.append(mo.md("### Loaded spectral constraint:"))
-        spectral_constraint.plot_with_group_delay()
-        aw.plot.showmo()
-    return (spectral_constraint,)
 
 
 @app.cell
@@ -348,6 +315,39 @@ def _(mo, spectral_constraint_data, spectral_constraint_format):
         spectral_constraint_wavelength_header,
         spectral_constraint_wavelength_multiplier,
     )
+
+
+@app.cell
+def _(
+    aw,
+    mo,
+    spectral_constraint_data,
+    spectral_constraint_format,
+    spectral_constraint_intensity_header,
+    spectral_constraint_skip_lines,
+    spectral_constraint_wavelength_header,
+    spectral_constraint_wavelength_multiplier,
+):
+    spectral_constraint = None
+    if spectral_constraint_data is not None:
+        match spectral_constraint_format.value:
+            case "Columns":
+                spectral_constraint = aw.data.load_mean_spectrum_from_scarab(
+                    spectral_constraint_data.decode("utf-8"), is_data_string=True, header_size=spectral_constraint_skip_lines.value
+                )
+            case "Text with headers":
+                spectral_constraint = aw.data.load_spectrum_from_text(
+                    filename_or_data_string=spectral_constraint_data.decode("utf-8"),
+                    wavelength_multiplier=1.0
+                    / spectral_constraint_wavelength_multiplier.value,
+                    wavelength_field=spectral_constraint_wavelength_header.value,
+                    spectrum_field=spectral_constraint_intensity_header.value,
+                    is_data_string=True
+                )
+        mo.output.append(mo.md("### Loaded spectral constraint:"))
+        spectral_constraint.plot_with_group_delay()
+        aw.plot.showmo()
+    return (spectral_constraint,)
 
 
 @app.cell
