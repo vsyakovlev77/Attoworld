@@ -61,14 +61,9 @@ async def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    # FROG reconstruction
-
-    ---
-    #### Select your FROG file:
-    """
-    )
+    mo.output.append(mo.md("# FROG Reconstruction:"))
+    mo.output.append(mo.md("---"))
+    mo.output.append(mo.md("#### Select your FROG file:"))
     return
 
 
@@ -91,54 +86,6 @@ def _(mo):
     mode_selector = mo.ui.dropdown(options=["SHG", "THG", "Kerr", "XFROG", "BlindFROG"], label="FROG type:", value="SHG")
     mode_selector
     return (mode_selector,)
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ---
-    #### Optional spectral constraint:
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    spectral_constraint_file = mo.ui.file(label="Spectral contstraint file")
-    spectral_constraint_file
-    return (spectral_constraint_file,)
-
-
-@app.cell
-def _(mo, spectral_constraint_file):
-    spectral_constraint_format = mo.ui.dropdown(options=["Columns", "Text with headers"], value="Text with headers")
-    spectral_constraint_data = spectral_constraint_file.contents()
-    if spectral_constraint_data is not None:
-        mo.output.append(spectral_constraint_format)
-    return spectral_constraint_data, spectral_constraint_format
-
-
-@app.cell
-def _(mo, spectral_constraint_data, spectral_constraint_format):
-    spectral_constraint_wavelength_header = mo.ui.text(label="Wavelength column key:", value="wavelength (nm)")
-    spectral_constraint_wavelength_multiplier = mo.ui.number(label="Wavelength multiplier:", value=1e9)
-    spectral_constraint_intensity_header = mo.ui.text(label="Intensity column key:", value="intensity (a.u.)")
-    spectral_constraint_skip_lines = mo.ui.number(value=0, label="Header lines:")
-    if spectral_constraint_data is not None:
-        if spectral_constraint_format.value == "Text with headers":
-            mo.output.append(spectral_constraint_wavelength_header)
-            mo.output.append(spectral_constraint_wavelength_multiplier)
-            mo.output.append(spectral_constraint_intensity_header)
-        if spectral_constraint_format.value == "Columns":
-            mo.output.append(spectral_constraint_skip_lines)
-    return (
-        spectral_constraint_intensity_header,
-        spectral_constraint_skip_lines,
-        spectral_constraint_wavelength_header,
-        spectral_constraint_wavelength_multiplier,
-    )
 
 
 @app.cell
@@ -228,12 +175,8 @@ def _(aw, calibration_selector, file_browser):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ---
-    #### Bin onto evenly-spaced space/time grid:
-    """
-    )
+    mo.output.append(mo.md("---"))
+    mo.output.append(mo.md("#### Bin data onto evenly spaced grid:"))
     return
 
 
@@ -369,12 +312,47 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    ---
-    #### Run the reconstruction routine:
-    """
+    mo.output.append(mo.md("---"))
+    mo.output.append(mo.md("#### Optional spectral constraint:"))
+    spectral_constraint_file = mo.ui.file(label="Spectral contstraint file")
+    mo.output.append(spectral_constraint_file)
+    return (spectral_constraint_file,)
+
+
+@app.cell
+def _(mo, spectral_constraint_file):
+    spectral_constraint_format = mo.ui.dropdown(options=["Columns", "Text with headers"], value="Text with headers")
+    spectral_constraint_data = spectral_constraint_file.contents()
+    if spectral_constraint_data is not None:
+        mo.output.append(spectral_constraint_format)
+    return spectral_constraint_data, spectral_constraint_format
+
+
+@app.cell
+def _(mo, spectral_constraint_data, spectral_constraint_format):
+    spectral_constraint_wavelength_header = mo.ui.text(label="Wavelength column key:", value="wavelength (nm)")
+    spectral_constraint_wavelength_multiplier = mo.ui.number(label="Wavelength multiplier:", value=1e9)
+    spectral_constraint_intensity_header = mo.ui.text(label="Intensity column key:", value="intensity (a.u.)")
+    spectral_constraint_skip_lines = mo.ui.number(value=0, label="Header lines:")
+    if spectral_constraint_data is not None:
+        if spectral_constraint_format.value == "Text with headers":
+            mo.output.append(spectral_constraint_wavelength_header)
+            mo.output.append(spectral_constraint_wavelength_multiplier)
+            mo.output.append(spectral_constraint_intensity_header)
+        if spectral_constraint_format.value == "Columns":
+            mo.output.append(spectral_constraint_skip_lines)
+    return (
+        spectral_constraint_intensity_header,
+        spectral_constraint_skip_lines,
+        spectral_constraint_wavelength_header,
+        spectral_constraint_wavelength_multiplier,
     )
+
+
+@app.cell
+def _(mo):
+    mo.output.append(mo.md("---"))
+    mo.output.append(mo.md("#### Run the reconstruction:"))
     return
 
 
@@ -438,7 +416,7 @@ def _(
                 frog_type = aw.attoworld_rs.FrogType.Xfrog
             case "BlindFROG":
                 frog_type = aw.attoworld_rs.FrogType.Blindfrog
-        result, gate_result = aw.wave.reconstruct_frog(
+        result, result_gate = aw.wave.reconstruct_frog(
             measurement=frog_data,
             repeats=int(recon_trials.value),
             test_iterations=int(recon_trial_length.value),
@@ -449,7 +427,7 @@ def _(
         )
     else:
         result = None
-    return (result,)
+    return result, result_gate
 
 
 @app.cell
