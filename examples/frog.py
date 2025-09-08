@@ -7,32 +7,29 @@ app = marimo.App(width="medium")
 @app.cell
 async def _():
     import marimo as mo
+
     # check if running in a browser, install attoworld from local copy
     import sys
+
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
         import os
-        await micropip.install("https://nickkarpowicz.github.io/wheels/attoworld-2025.0.41-cp312-cp312-emscripten_3_1_58_wasm32.whl")
-
-        import base64
         import zipfile
-
-        def create_download_link(data, filename, mime_type="text/plain"):
-            encoded_data = base64.b64encode(data).decode("utf-8")
-            data_uri = f"data:{mime_type};base64,{encoded_data}"
-            html = f'<a href="{data_uri}" download="{filename}">Download {filename}</a>'
-            return mo.Html(html)
-
+        await micropip.install(
+            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.41-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+        )
+    
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
         ):
             with open(path, "rb") as _file:
                 mo.output.append(
-                    create_download_link(
-                        data=_file.read(),
+                    mo.download(
+                        data=_file,
                         filename=output_name,
-                        mime_type=mime_type,
+                        mimetype=mime_type,
+                        label=f"Download {output_name}",
                     )
                 )
     else:
