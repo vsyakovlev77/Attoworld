@@ -213,6 +213,7 @@ def reconstruct_frog(
 
     if spectrum is not None:
         spec_freq, spec = spectrum.get_frequency_spectrum()
+        spec -= np.min(spec)
         spectral_constraint = np.sqrt(
             interpolate(
                 measurement.freq - np.mean(measurement.freq) + f0,
@@ -229,8 +230,10 @@ def reconstruct_frog(
             spectrum_autocorrelation = np.abs(
                 np.fft.ifft(np.fft.fft(spectral_constraint) ** 2)
             )
-            wiener_factor = (1.0 / spectrogram_marginal) * (
-                1.0 / (1.0 + 1.0 / (spectrogram_marginal**2 * 1000.0))
+            wiener_factor = np.where(
+                spectrogram_marginal > 0.0,
+                (1.0 / spectrogram_marginal) * (1.0 / (1.0 + 1.0 / (spectrogram_marginal**2 * 1000.0))),
+                0.0
             )
             amp_factor = np.where(
                 spectrogram_marginal > 0.0,

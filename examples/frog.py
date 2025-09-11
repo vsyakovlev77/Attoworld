@@ -21,7 +21,7 @@ async def _():
         import os
         import zipfile
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.42-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.43-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"

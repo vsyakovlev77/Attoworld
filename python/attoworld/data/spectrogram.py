@@ -123,13 +123,12 @@ class Spectrogram:
 
     def to_removed_spatial_chirp(self):
         """Remove the effects of spatial chirp on an SHG-FROG trace by centering all single-frequency autocorrelations to the same time-zero."""
-        new_data = np.array(self.data)
+        new_data = np.zeros(self.data.shape, dtype=float)
         for i in range(len(self.freq)):
             total = np.sum(self.data[i, :])
             if total > 0.0:
                 t0 = np.sum(self.time * self.data[i, :]) / total
                 new_data[i, :] = interpolate(self.time + t0, self.time, self.data[i, :])
-
         return Spectrogram(data=new_data, time=self.time, freq=self.freq)
 
     def to_combined_and_binned(
@@ -248,15 +247,12 @@ class Spectrogram:
         if settings.auto_t0:
             t0 = None
 
-        def maybe_correct_chirp(instance, apply: bool):
-            return instance.to_removed_spatial_chirp() if apply else instance
+        filtered = self.to_block_binned(settings.freq_binning, settings.time_binning, method).to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=t0).to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
+        if settings.spatial_chirp_correction:
+            return filtered.to_removed_spatial_chirp().to_per_frequency_dc_removed()
+        else:
+            return filtered
 
-        return (
-            maybe_correct_chirp(self, settings.spatial_chirp_correction)
-            .to_block_binned(settings.freq_binning, settings.time_binning, method)
-            .to_binned(dim=settings.size, dt=settings.dt, f0=settings.f0, t0=t0)
-            .to_per_frequency_dc_removed(extra_offset=settings.dc_offset)
-        )
 
     def plot(self, ax: Optional[Axes] = None, take_sqrt: bool = True):
         """Plot the spectrogram.
