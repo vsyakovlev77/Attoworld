@@ -18,10 +18,9 @@ async def _():
     is_in_web_notebook = sys.platform == "emscripten"
     if is_in_web_notebook:
         import micropip
-        import os
         import zipfile
         await micropip.install(
-            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.43-cp312-cp312-emscripten_3_1_58_wasm32.whl"
+            "https://nickkarpowicz.github.io/wheels/attoworld-2025.0.44-cp312-cp312-emscripten_3_1_58_wasm32.whl"
         )
         def display_download_link_from_file(
             path, output_name, mime_type="text/plain"
@@ -326,6 +325,9 @@ def _(mo, spectral_constraint_data, spectral_constraint_format):
     spectral_constraint_wavelength_multiplier = mo.ui.number(label="Wavelength multiplier:", value=1e9)
     spectral_constraint_intensity_header = mo.ui.text(label="Intensity column key:", value="intensity (a.u.)")
     spectral_constraint_skip_lines = mo.ui.number(value=0, label="Header lines:")
+    spectral_constraint_bandpass_f0 = mo.ui.number(value=375, label="Bandpass central frequency (THz)")
+    spectral_constraint_bandpass_sigma = mo.ui.number(value=50, label="Bandpass width (THz)")
+    spectral_constraint_bandpass_order = mo.ui.number(value=4, start=2, step=2, label="Bandpass order")
     if spectral_constraint_data is not None:
         if spectral_constraint_format.value == "Text with headers":
             mo.output.append(spectral_constraint_wavelength_header)
@@ -333,7 +335,13 @@ def _(mo, spectral_constraint_data, spectral_constraint_format):
             mo.output.append(spectral_constraint_intensity_header)
         if spectral_constraint_format.value == "Columns":
             mo.output.append(spectral_constraint_skip_lines)
+        mo.output.append(spectral_constraint_bandpass_f0)
+        mo.output.append(spectral_constraint_bandpass_sigma)
+        mo.output.append(spectral_constraint_bandpass_order)
     return (
+        spectral_constraint_bandpass_f0,
+        spectral_constraint_bandpass_order,
+        spectral_constraint_bandpass_sigma,
         spectral_constraint_intensity_header,
         spectral_constraint_skip_lines,
         spectral_constraint_wavelength_header,
@@ -345,6 +353,9 @@ def _(mo, spectral_constraint_data, spectral_constraint_format):
 def _(
     aw,
     mo,
+    spectral_constraint_bandpass_f0,
+    spectral_constraint_bandpass_order,
+    spectral_constraint_bandpass_sigma,
     spectral_constraint_data,
     spectral_constraint_format,
     spectral_constraint_intensity_header,
@@ -368,6 +379,7 @@ def _(
                     spectrum_field=spectral_constraint_intensity_header.value,
                     is_data_string=True
                 )
+        spectral_constraint = spectral_constraint.to_bandpassed(spectral_constraint_bandpass_f0.value * 1e12,spectral_constraint_bandpass_sigma.value * 1e12,int(spectral_constraint_bandpass_order.value))
         mo.output.append(mo.md("### Loaded spectral constraint:"))
         spectral_constraint.plot_with_group_delay()
         aw.plot.showmo()
