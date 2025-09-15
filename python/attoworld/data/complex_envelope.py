@@ -69,7 +69,7 @@ class ComplexEnvelope:
         intensity_line = ax.plot(
             time_ax,
             intensity,
-            label=f"Intensity, fwhm {1e15 * self.get_fwhm():0.1f} fs",
+            label=f"Intensity,\n{1e15 * self.get_fwhm():0.1f} fs",
         )
         ax.set_xlabel("Time (fs)")
         ax.set_ylabel("Intensity (Arb. unit)")
@@ -85,12 +85,12 @@ class ComplexEnvelope:
             time_ax[intensity > phase_blanking],
             inst_freq[intensity > phase_blanking],
             "--",
-            label="Inst. frequency",
+            label="Frequency",
         )
         ax_phase.set_ylabel("Inst. frequency (THz)")
         if xlim is not None:
             ax.set_xlim(xlim)
             ax_phase.set_xlim(xlim)
-        lines = lines = intensity_line + phase_line
+        lines = intensity_line + phase_line
         ax.legend(lines, [str(line.get_label()) for line in lines])
         return fig
