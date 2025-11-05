@@ -5,6 +5,12 @@ from .frog import (
     generate_spectrogram,
     reconstruct_frog,
 )
+from .time_frequency import (
+    compare_time_frequency_methods,
+    cwt,
+    stft,
+    wigner_ville,
+)
 from .wave import align_waves
 
 __all__ = [
@@ -12,4 +18,8 @@ __all__ = [
     "reconstruct_frog",
     "generate_spectrogram",
     "bundle_frog_reconstruction",
+    "stft",
+    "cwt",
+    "wigner_ville",
+    "compare_time_frequency_methods",
 ]
